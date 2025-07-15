@@ -21,29 +21,25 @@ export default function NotificationsScreen() {
     setStoreError(true);
   }
   
+  // Destructure with safe defaults
   const { 
-    settings, 
-    updateSettings,
-    workoutReminders,
-    updateWorkoutReminder,
-    mealReminders,
-    updateMealReminder,
-    waterReminders,
-    updateWaterReminder,
-    stepReminders,
-    updateStepReminder
+    settings = { enabled: false }, 
+    updateSettings = () => {},
+    workoutReminders = { minutesBefore: 30, sound: true },
+    updateWorkoutReminder = () => {},
+    mealReminders = { breakfast: true, breakfastTime: "08:00", lunch: true, lunchTime: "12:30", dinner: true, dinnerTime: "19:00", snacks: false },
+    updateMealReminder = () => {},
+    waterReminders = { interval: 60, startTime: "08:00", endTime: "22:00", specificTimes: ["10:00", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30", "21:00"] },
+    updateWaterReminder = () => {},
+    stepReminders = { reminderTime: "19:00", goalPercentage: 70 },
+    updateStepReminder = () => {}
   } = notificationStore || {};
   
   const [hasPermission, setHasPermission] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Add safe defaults for notification store
-  const safeSettings = settings || { enabled: false };
-  const safeWorkoutReminders = workoutReminders || { minutesBefore: 30, sound: true };
-  const safeMealReminders = mealReminders || { breakfast: true, breakfastTime: "08:00", lunch: true, lunchTime: "12:30", dinner: true, dinnerTime: "19:00", snacks: false };
-  const safeWaterReminders = waterReminders || { interval: 60, startTime: "08:00", endTime: "22:00", specificTimes: ["10:00", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30", "21:00"] };
-  const safeStepReminders = stepReminders || { reminderTime: "19:00", goalPercentage: 70 };
+
   
   useEffect(() => {
     checkNotificationPermissions();
@@ -141,6 +137,42 @@ export default function NotificationsScreen() {
     setHasChanges(true);
   };
   
+  // Show error state if store failed to load
+  if (storeError) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen 
+          options={{
+            title: "Notifications",
+            headerShown: true,
+            headerBackVisible: false,
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={() => router.back()} 
+                style={styles.backButton}
+                accessibilityLabel="Go back"
+                accessibilityHint="Returns to the previous screen"
+              >
+                <ArrowLeft size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Unable to Load Settings</Text>
+          <Text style={styles.errorText}>
+            There was an error loading notification settings. Please try again.
+          </Text>
+          <Button
+            title="Go Back"
+            onPress={() => router.back()}
+            style={styles.errorButton}
+          />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -176,12 +208,12 @@ export default function NotificationsScreen() {
             <Switch
               trackColor={{ false: colors.inactive, true: colors.primary }}
               thumbColor="#FFFFFF"
-              value={safeSettings.enabled}
+              value={settings.enabled}
               onValueChange={toggleNotifications}
             />
           </View>
           
-          {!hasPermission && safeSettings.enabled && (
+          {!hasPermission && settings.enabled && (
             <View style={styles.permissionWarning}>
               <Text style={styles.permissionText}>
                 Notifications permission is required. Please grant permission to receive reminders.
@@ -461,5 +493,28 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     width: "100%",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  errorButton: {
+    minWidth: 120,
   },
 });
