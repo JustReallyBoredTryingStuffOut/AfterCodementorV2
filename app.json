@@ -18,7 +18,12 @@
       "bundleIdentifier": "app.rork.fitjourney-tracker",
       "infoPlist": {
         "NSHealthShareUsageDescription": "We use your Health data to track steps and workouts.",
-        "NSHealthUpdateUsageDescription": "We update your Health data with workout sessions."
+        "NSHealthUpdateUsageDescription": "We update your Health data with workout sessions.",
+        "UIBackgroundModes": [
+          "background-processing",
+          "background-fetch",
+          "remote-notification"
+        ]
       }
     },
     "web": {

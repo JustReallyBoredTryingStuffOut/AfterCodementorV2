@@ -9,6 +9,18 @@ import Button from "@/components/Button";
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  
+  // Add error boundary for notification store
+  const [storeError, setStoreError] = useState(false);
+  
+  let notificationStore;
+  try {
+    notificationStore = useNotificationStore();
+  } catch (error) {
+    console.error('Error accessing notification store:', error);
+    setStoreError(true);
+  }
+  
   const { 
     settings, 
     updateSettings,
@@ -20,11 +32,18 @@ export default function NotificationsScreen() {
     updateWaterReminder,
     stepReminders,
     updateStepReminder
-  } = useNotificationStore();
+  } = notificationStore || {};
   
   const [hasPermission, setHasPermission] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Add safe defaults for notification store
+  const safeSettings = settings || { enabled: false };
+  const safeWorkoutReminders = workoutReminders || { minutesBefore: 30, sound: true };
+  const safeMealReminders = mealReminders || { breakfast: true, breakfastTime: "08:00", lunch: true, lunchTime: "12:30", dinner: true, dinnerTime: "19:00", snacks: false };
+  const safeWaterReminders = waterReminders || { interval: 60, startTime: "08:00", endTime: "22:00", specificTimes: ["10:00", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30", "21:00"] };
+  const safeStepReminders = stepReminders || { reminderTime: "19:00", goalPercentage: 70 };
   
   useEffect(() => {
     checkNotificationPermissions();
@@ -157,12 +176,12 @@ export default function NotificationsScreen() {
             <Switch
               trackColor={{ false: colors.inactive, true: colors.primary }}
               thumbColor="#FFFFFF"
-              value={settings.enabled}
+              value={safeSettings.enabled}
               onValueChange={toggleNotifications}
             />
           </View>
           
-          {!hasPermission && settings.enabled && (
+          {!hasPermission && safeSettings.enabled && (
             <View style={styles.permissionWarning}>
               <Text style={styles.permissionText}>
                 Notifications permission is required. Please grant permission to receive reminders.

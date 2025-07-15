@@ -14,6 +14,7 @@ import { Stack, useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useAiStore, Goal } from "@/store/aiStore";
+import { useNotificationStore } from "@/store/notificationStore";
 
 const CATEGORIES = [
   { id: "weight", label: "Weight" },
@@ -51,7 +52,7 @@ export default function AddGoalScreen() {
     router.back();
   };
   
-  const handleAddGoal = () => {
+  const handleAddGoal = async () => {
     if (goalText.trim() === "") {
       Alert.alert("Error", "Please enter a goal");
       return;
@@ -83,6 +84,12 @@ export default function AddGoalScreen() {
       try {
         // For water goals, schedule hourly reminders by default
         scheduleGoalReminder(newGoal.id, 'hourly');
+        
+        // Also schedule water notifications
+        const notificationStore = useNotificationStore.getState();
+        if (notificationStore && notificationStore.scheduleWaterNotification) {
+          await notificationStore.scheduleWaterNotification();
+        }
       } catch (error) {
         console.error("Error scheduling water goal reminder:", error);
       }

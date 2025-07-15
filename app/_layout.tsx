@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, TextInput, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, TextInput, ScrollView, Platform, ActivityIndicator, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGamificationStore } from '@/store/gamificationStore';
 import { useMacroStore } from '@/store/macroStore';
@@ -21,6 +21,7 @@ export default function RootLayout() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [appState, setAppState] = useState(AppState.currentState);
   
   const { 
     gamificationEnabled, 
@@ -65,6 +66,48 @@ export default function RootLayout() {
   const scrollViewRef = useRef(null);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   
+  // Handle app state changes to prevent crashes
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        // App has come to the foreground
+        console.log('App has come to the foreground');
+        // Refresh data when app comes to foreground
+        try {
+          // Refresh HealthKit data
+          const healthStore = useHealthStore.getState();
+          if (healthStore.syncWeightFromHealthKit) {
+            healthStore.syncWeightFromHealthKit();
+          }
+          if (healthStore.syncStepsFromHealthKit) {
+            healthStore.syncStepsFromHealthKit();
+          }
+        } catch (error) {
+          console.error('Error refreshing data on foreground:', error);
+        }
+      } else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
+        // App has gone to the background
+        console.log('App has gone to the background');
+        // Save any pending state
+        try {
+          // Ensure all stores are persisted
+          const stores = [useGamificationStore, useMacroStore, useWorkoutStore];
+          stores.forEach(store => {
+            if (store.getState) {
+              store.getState();
+            }
+          });
+        } catch (error) {
+          console.error('Error saving state on background:', error);
+        }
+      }
+      setAppState(nextAppState);
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [appState]);
+
   // Check if it's the first launch
   useEffect(() => {
     const checkFirstLaunch = async () => {

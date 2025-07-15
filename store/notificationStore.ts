@@ -217,6 +217,17 @@ export const useNotificationStore = create<NotificationStoreState>((set) => ({
   clearNotifications: () => set({ notifications: [] }),
 }));
 
+// Initialize notification handler
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
 export const useNotificationStoreState = create<NotificationState>()(
   persist(
     (set, get) => ({

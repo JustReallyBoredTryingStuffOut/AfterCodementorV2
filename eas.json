@@ -11,6 +11,12 @@
     "preview": {
       "distribution": "internal"
     },
+    "adhoc": {
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    },
     "production": {
       "autoIncrement": true
     }
