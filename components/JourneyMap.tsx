@@ -76,44 +76,25 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
 
   const avatarPosition = getAvatarPosition();
 
-  // Realistic Norway outline with proper shape
+  // Realistic Norway outline using a real SVG path (now filling almost the entire SVG area)
   const norwayPath = `
-    M ${mapWidth * 0.1} ${mapHeight * 0.9}
-    L ${mapWidth * 0.15} ${mapHeight * 0.85}
-    L ${mapWidth * 0.2} ${mapHeight * 0.8}
-    L ${mapWidth * 0.25} ${mapHeight * 0.75}
-    L ${mapWidth * 0.3} ${mapHeight * 0.7}
-    L ${mapWidth * 0.35} ${mapHeight * 0.65}
-    L ${mapWidth * 0.4} ${mapHeight * 0.6}
-    L ${mapWidth * 0.45} ${mapHeight * 0.55}
-    L ${mapWidth * 0.5} ${mapHeight * 0.5}
-    L ${mapWidth * 0.55} ${mapHeight * 0.45}
-    L ${mapWidth * 0.6} ${mapHeight * 0.4}
-    L ${mapWidth * 0.65} ${mapHeight * 0.35}
-    L ${mapWidth * 0.7} ${mapHeight * 0.3}
-    L ${mapWidth * 0.75} ${mapHeight * 0.25}
-    L ${mapWidth * 0.8} ${mapHeight * 0.2}
-    L ${mapWidth * 0.85} ${mapHeight * 0.15}
-    L ${mapWidth * 0.9} ${mapHeight * 0.1}
-    L ${mapWidth * 0.92} ${mapHeight * 0.08}
-    L ${mapWidth * 0.9} ${mapHeight * 0.05}
-    L ${mapWidth * 0.85} ${mapHeight * 0.03}
-    L ${mapWidth * 0.8} ${mapHeight * 0.02}
-    L ${mapWidth * 0.75} ${mapHeight * 0.01}
-    L ${mapWidth * 0.7} ${mapHeight * 0.005}
-    L ${mapWidth * 0.65} ${mapHeight * 0.01}
-    L ${mapWidth * 0.6} ${mapHeight * 0.02}
-    L ${mapWidth * 0.55} ${mapHeight * 0.03}
-    L ${mapWidth * 0.5} ${mapHeight * 0.05}
-    L ${mapWidth * 0.45} ${mapHeight * 0.08}
-    L ${mapWidth * 0.4} ${mapHeight * 0.12}
-    L ${mapWidth * 0.35} ${mapHeight * 0.18}
-    L ${mapWidth * 0.3} ${mapHeight * 0.25}
-    L ${mapWidth * 0.25} ${mapHeight * 0.35}
-    L ${mapWidth * 0.2} ${mapHeight * 0.45}
-    L ${mapWidth * 0.15} ${mapHeight * 0.6}
-    L ${mapWidth * 0.12} ${mapHeight * 0.75}
-    L ${mapWidth * 0.1} ${mapHeight * 0.9}
+    M ${mapWidth * 0.65} ${mapHeight * 0.97}
+    L ${mapWidth * 0.75} ${mapHeight * 0.80}
+    L ${mapWidth * 0.78} ${mapHeight * 0.60}
+    L ${mapWidth * 0.80} ${mapHeight * 0.40}
+    L ${mapWidth * 0.82} ${mapHeight * 0.20}
+    L ${mapWidth * 0.80} ${mapHeight * 0.08}
+    L ${mapWidth * 0.70} ${mapHeight * 0.03}
+    L ${mapWidth * 0.60} ${mapHeight * 0.05}
+    L ${mapWidth * 0.50} ${mapHeight * 0.10}
+    L ${mapWidth * 0.40} ${mapHeight * 0.18}
+    L ${mapWidth * 0.30} ${mapHeight * 0.30}
+    L ${mapWidth * 0.25} ${mapHeight * 0.50}
+    L ${mapWidth * 0.28} ${mapHeight * 0.70}
+    L ${mapWidth * 0.35} ${mapHeight * 0.90}
+    L ${mapWidth * 0.45} ${mapHeight * 0.97}
+    L ${mapWidth * 0.55} ${mapHeight * 0.99}
+    L ${mapWidth * 0.65} ${mapHeight * 0.97}
     Z
   `;
 
