@@ -157,6 +157,11 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
     setZoomLevel(Math.max(zoomLevel / 1.2, 0.5));
   };
 
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
   if (compact) {
     return (
       <View style={styles.compactContainer}>
@@ -308,11 +313,22 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
             <ZoomOut size={16} color={colors.text} />
           </TouchableOpacity>
           
+          <View style={styles.zoomIndicator}>
+            <Text style={styles.zoomText}>{Math.round(zoomLevel * 100)}%</Text>
+          </View>
+          
           <TouchableOpacity 
             style={[styles.controlButton, { backgroundColor: colors.card }]}
             onPress={handleZoomIn}
           >
             <ZoomIn size={16} color={colors.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: colors.secondary }]}
+            onPress={handleResetZoom}
+          >
+            <Compass size={16} color="#FFFFFF" />
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -343,13 +359,16 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
             </SvgLinearGradient>
           </Defs>
           
-          <G>
+          <G
+            transform={`scale(${zoomLevel}) translate(${panOffset.x}, ${panOffset.y})`}
+            transformOrigin={`${mapWidth / 2} ${mapHeight / 2}`}
+          >
             {/* Norway outline with realistic coloring */}
             <Path
               d={norwayPath}
               fill="url(#norwayGradient)"
               stroke={colors.primary}
-              strokeWidth={2}
+              strokeWidth={2 / zoomLevel}
             />
             
             {/* Mountain ranges */}
@@ -359,7 +378,7 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
                 d={mountain}
                 fill="url(#mountainGradient)"
                 stroke="#FFFFFF"
-                strokeWidth={1}
+                strokeWidth={1 / zoomLevel}
                 opacity={0.8}
               />
             ))}
@@ -371,7 +390,7 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
                 d={fjord}
                 fill="url(#fjordGradient)"
                 stroke="#1E90FF"
-                strokeWidth={1}
+                strokeWidth={1 / zoomLevel}
                 opacity={0.7}
               />
             ))}
@@ -382,16 +401,16 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
                 <Circle
                   cx={city.x}
                   cy={city.y}
-                  r={city.unlocked ? 6 : 4}
+                  r={city.unlocked ? 6 / zoomLevel : 4 / zoomLevel}
                   fill={city.unlocked ? colors.primary : "#666"}
                   stroke="#FFFFFF"
-                  strokeWidth={1}
+                  strokeWidth={1 / zoomLevel}
                 />
                 {city.unlocked && (
                   <SvgText
                     x={city.x}
-                    y={city.y - 10}
-                    fontSize={12}
+                    y={city.y - 10 / zoomLevel}
+                    fontSize={12 / zoomLevel}
                     fill={colors.text}
                     textAnchor="middle"
                     fontFamily={fonts.regular}
@@ -406,15 +425,15 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
             <Circle
               cx={avatarPosition.x}
               cy={avatarPosition.y}
-              r={8}
+              r={8 / zoomLevel}
               fill={colors.primary}
               stroke="#FFFFFF"
-              strokeWidth={2}
+              strokeWidth={2 / zoomLevel}
             />
             <Circle
               cx={avatarPosition.x}
               cy={avatarPosition.y}
-              r={15}
+              r={15 / zoomLevel}
               fill={colors.primary}
               opacity={0.3}
             />
@@ -492,6 +511,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  zoomIndicator: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.text,
   },
   mapContainer: {
     alignItems: 'center',
