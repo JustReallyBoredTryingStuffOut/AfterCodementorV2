@@ -146,6 +146,7 @@ interface GamificationState {
   
   generateDailyQuests: () => void;
   completeDailyQuest: (questId: string) => void;
+  checkAndAutoCompleteQuests: () => void;
   
   clearCelebration: () => void;
   clearChallengeCelebration: () => void;
@@ -4372,6 +4373,104 @@ export const useGamificationStore = create<GamificationState>()(
             ),
             points: state.points + quest.points
           };
+        });
+      },
+
+      // New method to automatically check and complete quests based on health data
+      checkAndAutoCompleteQuests: () => {
+        // Skip if gamification is disabled
+        if (!get().gamificationEnabled) return;
+        
+        const { dailyQuests, completeDailyQuest } = get();
+        const healthStore = useHealthStore.getState();
+        
+        // Get today's active quests
+        const today = new Date().toDateString();
+        const activeQuests = dailyQuests.filter(q => 
+          new Date(q.date).toDateString() === today && !q.completed
+        );
+        
+        activeQuests.forEach(quest => {
+          let shouldComplete = false;
+          
+          switch (quest.category) {
+            case 'steps': {
+              // Check step-based quests
+              const stepCount = healthStore.stepCount || 0;
+              const stepMatches = quest.description.match(/(\d+)\s*(steps|step)/i);
+              
+              if (stepMatches) {
+                const targetSteps = parseInt(stepMatches[1]);
+                shouldComplete = stepCount >= targetSteps;
+              }
+              break;
+            }
+            
+            case 'nutrition': {
+              // Check water intake quests
+              const waterIntake = healthStore.waterIntake || [];
+              const today = new Date().toDateString();
+              
+              // Calculate today's water intake in ml
+              const todayWaterIntake = waterIntake
+                .filter(entry => new Date(entry.date).toDateString() === today)
+                .reduce((total, entry) => total + entry.amount, 0);
+              
+              // Check for glass-based quests (e.g., "6 glasses")
+              const glassMatches = quest.description.match(/(\d+)\s*(glasses|glass)/i);
+              if (glassMatches) {
+                const targetGlasses = parseInt(glassMatches[1]);
+                const glassSize = 250; // ml per glass
+                const targetWater = targetGlasses * glassSize;
+                shouldComplete = todayWaterIntake >= targetWater;
+              }
+              
+              // Check for liter-based quests (e.g., "2L")
+              const literMatches = quest.description.match(/(\d+(?:\.\d+)?)\s*(l|liter|liters)/i);
+              if (literMatches && !shouldComplete) {
+                const targetLiters = parseFloat(literMatches[1]);
+                const targetWater = targetLiters * 1000; // Convert to ml
+                shouldComplete = todayWaterIntake >= targetWater;
+              }
+              break;
+            }
+            
+            case 'workout': {
+              // Workout quests are handled manually when workouts are completed
+              // This is already implemented in workoutStore.ts
+              break;
+            }
+          }
+          
+          // Auto-complete the quest if conditions are met
+          if (shouldComplete) {
+            completeDailyQuest(quest.id);
+            
+            // Show a brief celebration for auto-completed quests
+            set(state => ({
+              showCelebration: true,
+              celebrationAchievement: {
+                id: quest.id,
+                title: quest.title,
+                description: quest.description,
+                category: quest.category,
+                icon: "🎯",
+                tier: "bronze",
+                progress: 100,
+                target: 100,
+                completed: true,
+                points: quest.points
+              }
+            }));
+            
+            // Clear celebration after 3 seconds
+            setTimeout(() => {
+              set(state => ({
+                showCelebration: false,
+                celebrationAchievement: null
+              }));
+            }, 3000);
+          }
         });
       },
       

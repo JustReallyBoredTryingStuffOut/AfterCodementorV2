@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
@@ -9,7 +9,14 @@ import Button from '@/components/Button';
 export default function DailyQuestsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { dailyQuests, completeDailyQuest, gamificationEnabled } = useGamificationStore();
+  const { dailyQuests, completeDailyQuest, gamificationEnabled, checkAndAutoCompleteQuests } = useGamificationStore();
+  
+  // Check for automatic quest completion when screen loads
+  useEffect(() => {
+    if (gamificationEnabled) {
+      checkAndAutoCompleteQuests();
+    }
+  }, [gamificationEnabled, checkAndAutoCompleteQuests]);
   
   // Filter active quests for today
   const activeQuests = dailyQuests.filter(

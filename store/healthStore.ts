@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WeightLog, StepLog, HealthGoals, HealthDevice, ActivityLog, WaterIntake, DeviceSync, DeviceData, DailyNote } from "@/types";
 import { Platform } from "react-native";
 import HealthKitService from "../src/services/HealthKitService";
+import { useGamificationStore } from "./gamificationStore";
 
 // Initialize HealthKit service
 let healthKitInitialized = false;
@@ -225,13 +226,23 @@ export const useHealthStore = create<HealthState>()(
       setIsTrackingLocation: (isTracking) => set({ isTrackingLocation: isTracking }),
       
       // Water intake tracking
-      addWaterIntake: (amount) => set((state) => ({
-        waterIntake: [...state.waterIntake, {
-          id: Date.now().toString(),
-          date: new Date().toISOString(),
-          amount
-        }]
-      })),
+      addWaterIntake: (amount) => set((state) => {
+        const newState = {
+          waterIntake: [...state.waterIntake, {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            amount
+          }]
+        };
+        
+        // Check for automatic quest completion after adding water
+        setTimeout(() => {
+          const gamificationStore = useGamificationStore.getState();
+          gamificationStore.checkAndAutoCompleteQuests();
+        }, 100);
+        
+        return newState;
+      }),
       
       updateWaterIntake: (id, amount) => set((state) => ({
         waterIntake: state.waterIntake.map(entry => 
@@ -244,7 +255,17 @@ export const useHealthStore = create<HealthState>()(
       })),
       
       // Step count tracking
-      updateStepCount: (count) => set({ stepCount: count }),
+      updateStepCount: (count) => set((state) => {
+        const newState = { stepCount: count };
+        
+        // Check for automatic quest completion after updating step count
+        setTimeout(() => {
+          const gamificationStore = useGamificationStore.getState();
+          gamificationStore.checkAndAutoCompleteQuests();
+        }, 100);
+        
+        return newState;
+      }),
       
       // Device sync methods
       syncDeviceData: (deviceId, data) => set((state) => {

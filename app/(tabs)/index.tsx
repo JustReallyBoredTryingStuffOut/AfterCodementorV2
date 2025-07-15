@@ -226,7 +226,8 @@ export default function HomeScreen() {
     getActiveDailyQuests,
     challenges,
     streak,
-    getStreakInfo
+    getStreakInfo,
+    checkAndAutoCompleteQuests
   } = useGamificationStore();
   
   const [showGoalPrompt, setShowGoalPrompt] = useState(false);
@@ -274,6 +275,8 @@ export default function HomeScreen() {
   useEffect(() => {
     if (gamificationEnabled) {
       initializeAchievements();
+      // Check for automatic quest completion when app loads
+      checkAndAutoCompleteQuests();
     }
   }, [gamificationEnabled]);
   
@@ -284,6 +287,18 @@ export default function HomeScreen() {
       checkAchievements();
     }
   }, [workoutLogs, gamificationEnabled]);
+  
+  // Periodically check for automatic quest completion
+  useEffect(() => {
+    if (gamificationEnabled) {
+      // Check every 5 minutes for automatic quest completion
+      const interval = setInterval(() => {
+        checkAndAutoCompleteQuests();
+      }, 5 * 60 * 1000); // 5 minutes
+      
+      return () => clearInterval(interval);
+    }
+  }, [gamificationEnabled, checkAndAutoCompleteQuests]);
   
   // Get a new random tip
   const getNewTip = () => {
