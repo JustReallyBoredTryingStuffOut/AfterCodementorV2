@@ -74,16 +74,32 @@ export default function NotificationsScreen() {
     }
   };
   
-  const toggleNotifications = (value: boolean) => {
+  const toggleNotifications = async (value: boolean) => {
     if (value && !hasPermission) {
-      requestPermissions();
+      const { status } = await Notifications.requestPermissionsAsync();
+      const permissionGranted = status === "granted";
+      setHasPermission(permissionGranted);
+
+      if (permissionGranted) {
+        updateSettings({
+          ...settings,
+          enabled: true,
+        });
+        setHasChanges(true);
+      } else {
+        Alert.alert(
+          "Permission Required",
+          "Please enable notifications in your device settings to receive reminders"
+        );
+        return;
+      }
+    } else if (!value) {
+      updateSettings({
+        ...settings,
+        enabled: false,
+      });
+      setHasChanges(true);
     }
-    
-    updateSettings({
-      ...settings,
-      enabled: value,
-    });
-    setHasChanges(true);
   };
   
   const handleGoBack = () => {
@@ -208,7 +224,7 @@ export default function NotificationsScreen() {
             <Switch
               trackColor={{ false: colors.inactive, true: colors.primary }}
               thumbColor="#FFFFFF"
-              value={settings.enabled}
+              value={settings.enabled && hasPermission}
               onValueChange={toggleNotifications}
             />
           </View>

@@ -41,7 +41,7 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
       }
       
       // Request authorization for active calories
-      const authResult = await HealthKitService.requestAuthorization(['activeEnergyBurned']);
+      const authResult = await HealthKitService.requestAuthorization(['calories']);
       
       if (!authResult) {
         setError("Calories access denied");
