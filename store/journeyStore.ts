@@ -12,7 +12,7 @@ export interface NorwegianLandmark {
     latitude: number;
     longitude: number;
   };
-  distanceFromStart: number; // km from Oslo
+  distanceFromStart: number; // km from Lindesnes
   category: 'city' | 'nature' | 'culture' | 'adventure';
   funFact: string;
   imageUrl?: string;
@@ -27,7 +27,7 @@ export interface JourneyProgress {
     latitude: number;
     longitude: number;
   };
-  distanceTraveled: number; // km from Oslo
+  distanceTraveled: number; // km from Lindesnes
   currentLandmark?: NorwegianLandmark;
   nextLandmark?: NorwegianLandmark;
   progressPercentage: number;
@@ -87,64 +87,24 @@ interface JourneyState {
   updateSettings: (settings: Partial<JourneySettings>) => void;
 }
 
-// Norway landmarks data
+// Norway landmarks data - Starting from southernmost point and going north
 const norwegianLandmarks: NorwegianLandmark[] = [
   {
-    id: 'oslo',
-    name: 'Oslo',
-    description: 'The capital and largest city of Norway, known for its museums, parks, and vibrant culture.',
-    location: { latitude: 59.9139, longitude: 10.7522 },
+    id: 'lindesnes',
+    name: 'Lindesnes',
+    description: 'The southernmost point of mainland Norway, marked by the iconic Lindesnes Lighthouse.',
+    location: { latitude: 57.9833, longitude: 7.0500 },
     distanceFromStart: 0,
-    category: 'city',
-    funFact: 'Oslo was named the European Green Capital in 2019 for its environmental initiatives.',
+    category: 'nature',
+    funFact: 'Lindesnes Lighthouse is Norway\'s oldest lighthouse, first lit in 1655.',
     unlocked: true
-  },
-  {
-    id: 'drammen',
-    name: 'Drammen',
-    description: 'A city known for its beautiful river and outdoor activities.',
-    location: { latitude: 59.7440, longitude: 10.2045 },
-    distanceFromStart: 40,
-    category: 'city',
-    funFact: 'Drammen is home to the world\'s largest wooden building, the Drammen Theater.',
-    unlocked: false
-  },
-  {
-    id: 'kongsberg',
-    name: 'Kongsberg',
-    description: 'A historic mining town with rich cultural heritage.',
-    location: { latitude: 59.6689, longitude: 9.6502 },
-    distanceFromStart: 80,
-    category: 'culture',
-    funFact: 'Kongsberg was once the largest silver mining town in Europe.',
-    unlocked: false
-  },
-  {
-    id: 'notodden',
-    name: 'Notodden',
-    description: 'A town known for its industrial heritage and beautiful lakes.',
-    location: { latitude: 59.5614, longitude: 9.2572 },
-    distanceFromStart: 120,
-    category: 'culture',
-    funFact: 'Notodden is part of the UNESCO World Heritage site for industrial heritage.',
-    unlocked: false
-  },
-  {
-    id: 'telemark',
-    name: 'Telemark',
-    description: 'A region famous for its skiing heritage and beautiful landscapes.',
-    location: { latitude: 59.3911, longitude: 8.3214 },
-    distanceFromStart: 160,
-    category: 'adventure',
-    funFact: 'Telemark skiing was invented in this region in the 1860s.',
-    unlocked: false
   },
   {
     id: 'stavanger',
     name: 'Stavanger',
     description: 'The oil capital of Norway with beautiful coastal scenery.',
     location: { latitude: 58.9700, longitude: 5.7331 },
-    distanceFromStart: 300,
+    distanceFromStart: 150,
     category: 'city',
     funFact: 'Stavanger is known for its white wooden houses and is the gateway to the famous Preikestolen.',
     unlocked: false
@@ -154,7 +114,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Preikestolen (Pulpit Rock)',
     description: 'One of Norway\'s most famous natural attractions.',
     location: { latitude: 58.9864, longitude: 6.1103 },
-    distanceFromStart: 320,
+    distanceFromStart: 180,
     category: 'nature',
     funFact: 'The cliff rises 604 meters above the Lysefjord and is one of Norway\'s most photographed sites.',
     unlocked: false
@@ -164,9 +124,19 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Bergen',
     description: 'The gateway to the fjords and a UNESCO World Heritage city.',
     location: { latitude: 60.3913, longitude: 5.3221 },
-    distanceFromStart: 450,
+    distanceFromStart: 350,
     category: 'city',
     funFact: 'Bergen is known as the "City of Seven Mountains" and has the most rainfall of any European city.',
+    unlocked: false
+  },
+  {
+    id: 'oslo',
+    name: 'Oslo',
+    description: 'The capital and largest city of Norway, known for its museums, parks, and vibrant culture.',
+    location: { latitude: 59.9139, longitude: 10.7522 },
+    distanceFromStart: 500,
+    category: 'city',
+    funFact: 'Oslo was named the European Green Capital in 2019 for its environmental initiatives.',
     unlocked: false
   },
   {
@@ -174,7 +144,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Geirangerfjord',
     description: 'One of the most beautiful fjords in Norway.',
     location: { latitude: 62.1014, longitude: 7.2061 },
-    distanceFromStart: 550,
+    distanceFromStart: 700,
     category: 'nature',
     funFact: 'The Geirangerfjord is a UNESCO World Heritage site and one of the most visited tourist attractions in Norway.',
     unlocked: false
@@ -184,9 +154,19 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Trondheim',
     description: 'Norway\'s third-largest city and former capital.',
     location: { latitude: 63.4305, longitude: 10.3951 },
-    distanceFromStart: 650,
+    distanceFromStart: 900,
     category: 'city',
     funFact: 'Trondheim was the capital of Norway during the Viking Age and is home to the Nidaros Cathedral.',
+    unlocked: false
+  },
+  {
+    id: 'bodoe',
+    name: 'Bodø',
+    description: 'A coastal city known for its stunning scenery and the Saltstraumen whirlpool.',
+    location: { latitude: 67.2804, longitude: 14.4050 },
+    distanceFromStart: 1200,
+    category: 'nature',
+    funFact: 'Bodø is home to the world\'s strongest tidal current, the Saltstraumen whirlpool.',
     unlocked: false
   },
   {
@@ -194,9 +174,19 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Tromsø',
     description: 'The gateway to the Arctic and the Northern Lights.',
     location: { latitude: 69.6492, longitude: 18.9553 },
-    distanceFromStart: 1200,
+    distanceFromStart: 1500,
     category: 'adventure',
     funFact: 'Tromsø is the largest city in Northern Norway and is known as the "Paris of the North".',
+    unlocked: false
+  },
+  {
+    id: 'nordkapp',
+    name: 'Nordkapp (North Cape)',
+    description: 'The northernmost point of mainland Europe, offering spectacular views of the Arctic Ocean.',
+    location: { latitude: 71.1707, longitude: 25.7833 },
+    distanceFromStart: 1800,
+    category: 'adventure',
+    funFact: 'Nordkapp is considered the northernmost point of Europe and is a popular destination for midnight sun viewing.',
     unlocked: false
   },
   {
@@ -223,40 +213,40 @@ const journeyAchievements: JourneyAchievement[] = [
     target: 1
   },
   {
-    id: 'oslo-explorer',
-    title: 'Oslo Explorer',
-    description: 'Complete your first day of walking in Oslo',
+    id: 'lindesnes-explorer',
+    title: 'Lindesnes Explorer',
+    description: 'Complete your first day of walking at the southernmost point of Norway',
     category: 'landmark',
     unlocked: false,
     progress: 0,
     target: 1
   },
   {
-    id: 'drammen-visitor',
-    title: 'Drammen Visitor',
-    description: 'Reach the beautiful city of Drammen',
+    id: 'stavanger-visitor',
+    title: 'Stavanger Visitor',
+    description: 'Reach the beautiful coastal city of Stavanger',
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 40
+    target: 150
   },
   {
-    id: 'kongsberg-miner',
-    title: 'Kongsberg Miner',
-    description: 'Discover the historic mining town of Kongsberg',
+    id: 'preikestolen-climber',
+    title: 'Preikestolen Climber',
+    description: 'Reach the famous Pulpit Rock',
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 80
+    target: 180
   },
   {
-    id: 'telemark-skier',
-    title: 'Telemark Skier',
-    description: 'Reach the birthplace of Telemark skiing',
+    id: 'bergen-explorer',
+    title: 'Bergen Explorer',
+    description: 'Reach the gateway to the fjords',
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 160
+    target: 350
   },
   {
     id: 'fjord-explorer',
@@ -265,7 +255,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 550
+    target: 700
   },
   {
     id: 'arctic-adventurer',
@@ -274,7 +264,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 1200
+    target: 1500
   },
   {
     id: 'north-cape-conqueror',
@@ -283,7 +273,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 1500
+    target: 1800
   },
   {
     id: 'week-warrior',
@@ -317,7 +307,7 @@ const defaultSettings: JourneySettings = {
 const defaultProgress: JourneyProgress = {
   totalSteps: 0,
   totalDistance: 0,
-  currentLocation: { latitude: 59.9139, longitude: 10.7522 }, // Oslo
+  currentLocation: { latitude: 57.9833, longitude: 7.0500 }, // Lindesnes (southernmost point)
   distanceTraveled: 0,
   progressPercentage: 0,
   journeyStarted: new Date().toISOString(),
@@ -356,8 +346,8 @@ export const useJourneyStore = create<JourneyState>()(
         
         // Calculate new position (simplified - moves along a straight line)
         const progressPercentage = Math.min(newDistanceTraveled / 1500, 1); // 1500km is total journey
-        const newLatitude = 59.9139 + (progressPercentage * 11.2568); // Oslo to North Cape latitude difference
-        const newLongitude = 10.7522 + (progressPercentage * 15.0311); // Oslo to North Cape longitude difference
+            const newLatitude = 57.9833 + (progressPercentage * 13.1874); // Lindesnes to North Cape latitude difference
+    const newLongitude = 7.0500 + (progressPercentage * 18.7333); // Lindesnes to North Cape longitude difference
         
         // Check for new landmarks
         const newLandmarks = [...landmarks];

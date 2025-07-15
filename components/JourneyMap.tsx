@@ -76,50 +76,77 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
 
   const avatarPosition = getAvatarPosition();
 
-  // Realistic Norway outline with fjords and coastline
+  // Realistic Norway outline with proper shape
   const norwayPath = `
-    M ${mapWidth * 0.15} ${mapHeight * 0.85}
-    L ${mapWidth * 0.25} ${mapHeight * 0.8}
-    L ${mapWidth * 0.35} ${mapHeight * 0.75}
-    L ${mapWidth * 0.45} ${mapHeight * 0.7}
-    L ${mapWidth * 0.55} ${mapHeight * 0.65}
-    L ${mapWidth * 0.65} ${mapHeight * 0.6}
-    L ${mapWidth * 0.75} ${mapHeight * 0.55}
-    L ${mapWidth * 0.8} ${mapHeight * 0.5}
-    L ${mapWidth * 0.85} ${mapHeight * 0.45}
-    L ${mapWidth * 0.9} ${mapHeight * 0.4}
-    L ${mapWidth * 0.88} ${mapHeight * 0.35}
-    L ${mapWidth * 0.85} ${mapHeight * 0.3}
-    L ${mapWidth * 0.8} ${mapHeight * 0.25}
-    L ${mapWidth * 0.75} ${mapHeight * 0.2}
-    L ${mapWidth * 0.7} ${mapHeight * 0.15}
-    L ${mapWidth * 0.6} ${mapHeight * 0.1}
-    L ${mapWidth * 0.5} ${mapHeight * 0.08}
-    L ${mapWidth * 0.4} ${mapHeight * 0.1}
-    L ${mapWidth * 0.3} ${mapHeight * 0.15}
-    L ${mapWidth * 0.25} ${mapHeight * 0.2}
-    L ${mapWidth * 0.2} ${mapHeight * 0.3}
-    L ${mapWidth * 0.18} ${mapHeight * 0.4}
+    M ${mapWidth * 0.1} ${mapHeight * 0.9}
+    L ${mapWidth * 0.15} ${mapHeight * 0.85}
+    L ${mapWidth * 0.2} ${mapHeight * 0.8}
+    L ${mapWidth * 0.25} ${mapHeight * 0.75}
+    L ${mapWidth * 0.3} ${mapHeight * 0.7}
+    L ${mapWidth * 0.35} ${mapHeight * 0.65}
+    L ${mapWidth * 0.4} ${mapHeight * 0.6}
+    L ${mapWidth * 0.45} ${mapHeight * 0.55}
+    L ${mapWidth * 0.5} ${mapHeight * 0.5}
+    L ${mapWidth * 0.55} ${mapHeight * 0.45}
+    L ${mapWidth * 0.6} ${mapHeight * 0.4}
+    L ${mapWidth * 0.65} ${mapHeight * 0.35}
+    L ${mapWidth * 0.7} ${mapHeight * 0.3}
+    L ${mapWidth * 0.75} ${mapHeight * 0.25}
+    L ${mapWidth * 0.8} ${mapHeight * 0.2}
+    L ${mapWidth * 0.85} ${mapHeight * 0.15}
+    L ${mapWidth * 0.9} ${mapHeight * 0.1}
+    L ${mapWidth * 0.92} ${mapHeight * 0.08}
+    L ${mapWidth * 0.9} ${mapHeight * 0.05}
+    L ${mapWidth * 0.85} ${mapHeight * 0.03}
+    L ${mapWidth * 0.8} ${mapHeight * 0.02}
+    L ${mapWidth * 0.75} ${mapHeight * 0.01}
+    L ${mapWidth * 0.7} ${mapHeight * 0.005}
+    L ${mapWidth * 0.65} ${mapHeight * 0.01}
+    L ${mapWidth * 0.6} ${mapHeight * 0.02}
+    L ${mapWidth * 0.55} ${mapHeight * 0.03}
+    L ${mapWidth * 0.5} ${mapHeight * 0.05}
+    L ${mapWidth * 0.45} ${mapHeight * 0.08}
+    L ${mapWidth * 0.4} ${mapHeight * 0.12}
+    L ${mapWidth * 0.35} ${mapHeight * 0.18}
+    L ${mapWidth * 0.3} ${mapHeight * 0.25}
+    L ${mapWidth * 0.25} ${mapHeight * 0.35}
+    L ${mapWidth * 0.2} ${mapHeight * 0.45}
     L ${mapWidth * 0.15} ${mapHeight * 0.6}
+    L ${mapWidth * 0.12} ${mapHeight * 0.75}
+    L ${mapWidth * 0.1} ${mapHeight * 0.9}
     Z
   `;
 
   // Major fjords and geographical features
   const fjords = [
-    // Sognefjord
-    `M ${mapWidth * 0.4} ${mapHeight * 0.7} L ${mapWidth * 0.35} ${mapHeight * 0.65} L ${mapWidth * 0.3} ${mapHeight * 0.6}`,
+    // Sognefjord (longest fjord)
+    `M ${mapWidth * 0.35} ${mapHeight * 0.6} L ${mapWidth * 0.3} ${mapHeight * 0.55} L ${mapWidth * 0.25} ${mapHeight * 0.5}`,
     // Hardangerfjord
-    `M ${mapWidth * 0.5} ${mapHeight * 0.65} L ${mapWidth * 0.45} ${mapHeight * 0.6} L ${mapWidth * 0.4} ${mapHeight * 0.55}`,
+    `M ${mapWidth * 0.45} ${mapHeight * 0.55} L ${mapWidth * 0.4} ${mapHeight * 0.5} L ${mapWidth * 0.35} ${mapHeight * 0.45}`,
     // Trondheimsfjord
-    `M ${mapWidth * 0.6} ${mapHeight * 0.5} L ${mapWidth * 0.55} ${mapHeight * 0.45} L ${mapWidth * 0.5} ${mapHeight * 0.4}`,
+    `M ${mapWidth * 0.55} ${mapHeight * 0.4} L ${mapWidth * 0.5} ${mapHeight * 0.35} L ${mapWidth * 0.45} ${mapHeight * 0.3}`,
+    // Oslofjord
+    `M ${mapWidth * 0.6} ${mapHeight * 0.35} L ${mapWidth * 0.55} ${mapHeight * 0.3} L ${mapWidth * 0.5} ${mapHeight * 0.25}`,
   ];
 
   // Mountain ranges
   const mountains = [
-    // Jotunheimen
-    `M ${mapWidth * 0.35} ${mapHeight * 0.6} L ${mapWidth * 0.4} ${mapHeight * 0.55} L ${mapWidth * 0.45} ${mapHeight * 0.6}`,
+    // Jotunheimen (highest mountains)
+    `M ${mapWidth * 0.35} ${mapHeight * 0.55} L ${mapWidth * 0.4} ${mapHeight * 0.5} L ${mapWidth * 0.45} ${mapHeight * 0.55}`,
     // Dovrefjell
-    `M ${mapWidth * 0.55} ${mapHeight * 0.45} L ${mapWidth * 0.6} ${mapHeight * 0.4} L ${mapWidth * 0.65} ${mapHeight * 0.45}`,
+    `M ${mapWidth * 0.55} ${mapHeight * 0.35} L ${mapWidth * 0.6} ${mapHeight * 0.3} L ${mapWidth * 0.65} ${mapHeight * 0.35}`,
+    // Rondane
+    `M ${mapWidth * 0.5} ${mapHeight * 0.4} L ${mapWidth * 0.55} ${mapHeight * 0.35} L ${mapWidth * 0.6} ${mapHeight * 0.4}`,
+  ];
+
+  // Major cities and landmarks
+  const cities = [
+    { name: 'Oslo', x: mapWidth * 0.6, y: mapHeight * 0.3, unlocked: true },
+    { name: 'Bergen', x: mapWidth * 0.35, y: mapHeight * 0.55, unlocked: false },
+    { name: 'Trondheim', x: mapWidth * 0.55, y: mapHeight * 0.35, unlocked: false },
+    { name: 'Stavanger', x: mapWidth * 0.4, y: mapHeight * 0.65, unlocked: false },
+    { name: 'Tromsø', x: mapWidth * 0.75, y: mapHeight * 0.15, unlocked: false },
+    { name: 'Bodø', x: mapWidth * 0.65, y: mapHeight * 0.25, unlocked: false },
   ];
 
   const handleZoomIn = () => {
@@ -200,79 +227,47 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
                   />
                 ))}
                 
-                {/* Progress path with realistic trail */}
-                <Path
-                  d={`M ${mapWidth * 0.15} ${mapHeight * 0.85} L ${avatarPosition.x} ${avatarPosition.y}`}
-                  stroke={colors.accent}
-                  strokeWidth={3}
-                  strokeDasharray="6,6"
-                  opacity={0.9}
-                />
+                {/* Cities */}
+                {cities.map((city, index) => (
+                  <G key={`city-${index}`}>
+                    <Circle
+                      cx={city.x}
+                      cy={city.y}
+                      r={city.unlocked ? 4 : 3}
+                      fill={city.unlocked ? colors.primary : "#666"}
+                      stroke="#FFFFFF"
+                      strokeWidth={1}
+                    />
+                    {city.unlocked && (
+                      <SvgText
+                        x={city.x}
+                        y={city.y - 8}
+                        fontSize={10}
+                        fill={colors.text}
+                        textAnchor="middle"
+                        fontFamily={fonts.regular}
+                      >
+                        {city.name}
+                      </SvgText>
+                    )}
+                  </G>
+                ))}
                 
-                {/* Landmarks with realistic markers */}
-                {landmarks.map((landmark) => {
-                  const x = scaleCoordinate(landmark.location.longitude, norwayBounds.minLng, norwayBounds.maxLng, mapWidth);
-                  const y = mapHeight - scaleCoordinate(landmark.location.latitude, norwayBounds.minLat, norwayBounds.maxLat, mapHeight);
-                  
-                  return (
-                    <G key={landmark.id}>
-                      {landmark.unlocked && (
-                        <Circle
-                          cx={x}
-                          cy={y}
-                          r={10}
-                          fill="transparent"
-                          stroke={colors.success}
-                          strokeWidth={2}
-                          opacity={0.6}
-                        />
-                      )}
-                      <Circle
-                        cx={x}
-                        cy={y}
-                        r={landmark.unlocked ? 6 : 4}
-                        fill={landmark.unlocked ? colors.success : colors.textSecondary}
-                        opacity={0.9}
-                      />
-                      {landmark.unlocked && (
-                        <SvgText
-                          x={x}
-                          y={y - 15}
-                          fontSize="8"
-                          fill={colors.text}
-                          textAnchor="middle"
-                          fontWeight="bold"
-                        >
-                          {landmark.name.split(' ')[0]}
-                        </SvgText>
-                      )}
-                    </G>
-                  );
-                })}
-                
-                {/* Avatar with realistic positioning */}
+                {/* Avatar */}
                 <Circle
                   cx={avatarPosition.x}
                   cy={avatarPosition.y}
-                  r={8}
-                  fill="transparent"
-                  stroke={colors.accent}
+                  r={6}
+                  fill={colors.primary}
+                  stroke="#FFFFFF"
                   strokeWidth={2}
-                  opacity={0.4}
                 />
                 <Circle
                   cx={avatarPosition.x}
                   cy={avatarPosition.y}
-                  r={5}
-                  fill={colors.accent}
-                  stroke={colors.background}
-                  strokeWidth={1}
-                />
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={2}
-                  fill={colors.background}
+                  r={10}
+                  fill={colors.primary}
+                  opacity={0.3}
                 />
               </G>
             </Svg>
@@ -280,15 +275,15 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
           
           <View style={styles.compactStats}>
             <View style={styles.compactStat}>
-              <Trophy size={12} color={colors.textSecondary} />
+              <Trophy size={12} color={colors.primary} />
               <Text style={styles.compactStatText}>
-                {unlockedLandmarks.length} landmarks
+                {unlockedLandmarks.length}/{landmarks.length} landmarks
               </Text>
             </View>
             <View style={styles.compactStat}>
-              <Star size={12} color={colors.textSecondary} />
+              <Star size={12} color={colors.primary} />
               <Text style={styles.compactStatText}>
-                {stats.achievementsUnlocked} achievements
+                {achievements.filter(a => a.unlocked).length} achievements
               </Text>
             </View>
           </View>
@@ -298,623 +293,307 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient
-        colors={[colors.primary, colors.secondary]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.titleRow}>
-            <MapPin size={24} color={colors.text} />
-            <Text style={styles.title}>Norway Journey</Text>
-          </View>
-          <Text style={styles.subtitle}>Walk through the beautiful landscapes of Norway</Text>
-          
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${progress.progressPercentage * 100}%` }
-                ]} 
-              />
-            </View>
-            <View style={styles.progressTextRow}>
-              <Text style={styles.progressText}>
-                {progress.distanceTraveled.toFixed(1)}km / 1500km
-              </Text>
-              <Text style={styles.progressPercentage}>
-                {Math.round(progress.progressPercentage * 100)}%
-              </Text>
-            </View>
-          </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.titleSection}>
+          <MapPin size={24} color={colors.primary} />
+          <Text style={styles.title}>Your Journey</Text>
         </View>
-      </LinearGradient>
-
-      <View style={styles.content}>
-        {/* Interactive Map Section */}
-        <View style={styles.mapSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Journey</Text>
-            <View style={styles.mapControls}>
-              <TouchableOpacity onPress={handleZoomOut} style={styles.zoomButton}>
-                <ZoomOut size={16} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleZoomIn} style={styles.zoomButton}>
-                <ZoomIn size={16} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSync} disabled={isLoading}>
-                <Zap size={20} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.mapContainer}>
-            <Svg 
-              width={mapWidth * zoomLevel} 
-              height={mapHeight * zoomLevel} 
-              style={[styles.map, { transform: [{ scale: zoomLevel }] }]}
-            >
-              <Defs>
-                <SvgLinearGradient id="norwayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#4A90E2" stopOpacity="0.3" />
-                  <Stop offset="30%" stopColor="#2E8B57" stopOpacity="0.4" />
-                  <Stop offset="70%" stopColor="#8B4513" stopOpacity="0.3" />
-                  <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.2" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="mountainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-                  <Stop offset="50%" stopColor="#D3D3D3" stopOpacity="0.7" />
-                  <Stop offset="100%" stopColor="#A9A9A9" stopOpacity="0.5" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="fjordGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#1E90FF" stopOpacity="0.7" />
-                  <Stop offset="100%" stopColor="#000080" stopOpacity="0.5" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="forestGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#228B22" stopOpacity="0.4" />
-                  <Stop offset="100%" stopColor="#006400" stopOpacity="0.3" />
-                </SvgLinearGradient>
-              </Defs>
-              
-              <G>
-                {/* Norway outline with realistic satellite-style coloring */}
-                <Path
-                  d={norwayPath}
-                  fill="url(#norwayGradient)"
-                  stroke={colors.primary}
-                  strokeWidth={3}
-                />
-                
-                {/* Mountain ranges with snow caps */}
-                {mountains.map((mountain, index) => (
-                  <Path
-                    key={`mountain-${index}`}
-                    d={mountain}
-                    fill="url(#mountainGradient)"
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                    opacity={0.9}
-                  />
-                ))}
-                
-                {/* Fjords with realistic water coloring */}
-                {fjords.map((fjord, index) => (
-                  <Path
-                    key={`fjord-${index}`}
-                    d={fjord}
-                    fill="url(#fjordGradient)"
-                    stroke="#1E90FF"
-                    strokeWidth={2}
-                    opacity={0.8}
-                  />
-                ))}
-                
-                {/* Forest areas */}
-                <Path
-                  d={`M ${mapWidth * 0.3} ${mapHeight * 0.6} L ${mapWidth * 0.4} ${mapHeight * 0.55} L ${mapWidth * 0.5} ${mapHeight * 0.6} L ${mapWidth * 0.4} ${mapHeight * 0.65} Z`}
-                  fill="url(#forestGradient)"
-                  opacity={0.6}
-                />
-                
-                {/* Progress path with realistic trail */}
-                <Path
-                  d={`M ${mapWidth * 0.15} ${mapHeight * 0.85} L ${avatarPosition.x} ${avatarPosition.y}`}
-                  stroke={colors.accent}
-                  strokeWidth={4}
-                  strokeDasharray="8,8"
-                  opacity={0.9}
-                />
-                
-                {/* Landmarks with realistic markers */}
-                {landmarks.map((landmark) => {
-                  const x = scaleCoordinate(landmark.location.longitude, norwayBounds.minLng, norwayBounds.maxLng, mapWidth);
-                  const y = mapHeight - scaleCoordinate(landmark.location.latitude, norwayBounds.minLat, norwayBounds.maxLat, mapHeight);
-                  
-                  return (
-                    <G key={landmark.id}>
-                      {landmark.unlocked && (
-                        <Circle
-                          cx={x}
-                          cy={y}
-                          r={15}
-                          fill="transparent"
-                          stroke={colors.success}
-                          strokeWidth={2}
-                          opacity={0.4}
-                        />
-                      )}
-                      <Circle
-                        cx={x}
-                        cy={y}
-                        r={landmark.unlocked ? 8 : 6}
-                        fill={landmark.unlocked ? colors.success : colors.textSecondary}
-                        opacity={0.9}
-                      />
-                      {landmark.unlocked && (
-                        <SvgText
-                          x={x}
-                          y={y - 20}
-                          fontSize="10"
-                          fill={colors.text}
-                          textAnchor="middle"
-                          fontWeight="bold"
-                        >
-                          {landmark.name.split(' ')[0]}
-                        </SvgText>
-                      )}
-                    </G>
-                  );
-                })}
-                
-                {/* Avatar with realistic positioning and glow */}
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={20}
-                  fill="transparent"
-                  stroke={colors.accent}
-                  strokeWidth={2}
-                  opacity={0.3}
-                />
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={12}
-                  fill={colors.accent}
-                  stroke={colors.background}
-                  strokeWidth={3}
-                />
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={6}
-                  fill={colors.background}
-                />
-              </G>
-            </Svg>
-          </View>
-        </View>
-
-        {/* Stats Cards */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Journey Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                style={styles.statCardGradient}
-              >
-                <TrendingUp size={24} color={colors.text} />
-                <Text style={styles.statValue}>{stats.totalDistance.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>Total Distance (km)</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={[colors.success, '#4CAF50']}
-                style={styles.statCardGradient}
-              >
-                <MapPin size={24} color={colors.text} />
-                <Text style={styles.statValue}>{unlockedLandmarks.length}</Text>
-                <Text style={styles.statLabel}>Landmarks Visited</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={[colors.accent, '#FF9800']}
-                style={styles.statCardGradient}
-              >
-                <Trophy size={24} color={colors.text} />
-                <Text style={styles.statValue}>{stats.achievementsUnlocked}</Text>
-                <Text style={styles.statLabel}>Achievements</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={[colors.secondary, '#9C27B0']}
-                style={styles.statCardGradient}
-              >
-                <Navigation size={24} color={colors.text} />
-                <Text style={styles.statValue}>{stats.daysActive}</Text>
-                <Text style={styles.statLabel}>Days Active</Text>
-              </LinearGradient>
-            </View>
-          </View>
-        </View>
-
-        {/* Next Landmark */}
-        {nextLandmark && (
-          <View style={styles.nextLandmarkSection}>
-            <Text style={styles.sectionTitle}>Next Destination</Text>
-            <LinearGradient
-              colors={[colors.card, colors.surface]}
-              style={styles.landmarkCard}
-            >
-              <View style={styles.landmarkHeader}>
-                <View style={styles.landmarkIcon}>
-                  <MapPin size={20} color={colors.primary} />
-                </View>
-                <View style={styles.landmarkInfo}>
-                  <Text style={styles.landmarkName}>{nextLandmark.name}</Text>
-                  <Text style={styles.landmarkCategory}>{nextLandmark.category}</Text>
-                </View>
-              </View>
-              <Text style={styles.landmarkDescription}>{nextLandmark.description}</Text>
-              <View style={styles.landmarkProgress}>
-                <Text style={styles.landmarkDistance}>
-                  {nextLandmark.distanceFromStart - progress.distanceTraveled}km to go
-                </Text>
-                <View style={styles.landmarkProgressBar}>
-                  <View 
-                    style={[
-                      styles.landmarkProgressFill,
-                      { width: `${Math.min((progress.distanceTraveled / nextLandmark.distanceFromStart) * 100, 100)}%` }
-                    ]}
-                  />
-                </View>
-              </View>
-              <Text style={styles.landmarkFunFact}>💡 {nextLandmark.funFact}</Text>
-            </LinearGradient>
-          </View>
-        )}
-
-        {/* Recent Achievements */}
-        <View style={styles.achievementsSection}>
-          <Text style={styles.sectionTitle}>Recent Achievements</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {achievements
-              .filter(a => a.unlocked)
-              .slice(-3)
-              .map(achievement => (
-                <LinearGradient
-                  key={achievement.id}
-                  colors={[colors.card, colors.surface]}
-                  style={styles.achievementCard}
-                >
-                  <Trophy size={20} color={colors.accent} />
-                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                </LinearGradient>
-              ))}
-          </ScrollView>
-        </View>
-
-        {/* Sync Button */}
-        <TouchableOpacity 
-          style={styles.syncButton} 
-          onPress={handleSync}
-          disabled={isLoading}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.secondary]}
-            style={styles.syncButtonGradient}
+        
+        <View style={styles.controls}>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: colors.card }]}
+            onPress={handleZoomOut}
           >
-            <Zap size={20} color={colors.text} />
-            <Text style={styles.syncButtonText}>
-              {isLoading ? 'Syncing...' : 'Sync with HealthKit'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <ZoomOut size={16} color={colors.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: colors.card }]}
+            onPress={handleZoomIn}
+          >
+            <ZoomIn size={16} color={colors.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: colors.primary }]}
+            onPress={handleSync}
+            disabled={isLoading}
+          >
+            <Zap size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </ScrollView>
+
+      <View style={styles.mapContainer}>
+        <Svg width={mapWidth} height={mapHeight} style={styles.map}>
+          <Defs>
+            <SvgLinearGradient id="norwayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#4A90E2" stopOpacity="0.3" />
+              <Stop offset="50%" stopColor="#2E8B57" stopOpacity="0.4" />
+              <Stop offset="100%" stopColor="#8B4513" stopOpacity="0.3" />
+            </SvgLinearGradient>
+            <SvgLinearGradient id="mountainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
+              <Stop offset="100%" stopColor="#D3D3D3" stopOpacity="0.6" />
+            </SvgLinearGradient>
+            <SvgLinearGradient id="fjordGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#1E90FF" stopOpacity="0.6" />
+              <Stop offset="100%" stopColor="#000080" stopOpacity="0.4" />
+            </SvgLinearGradient>
+          </Defs>
+          
+          <G>
+            {/* Norway outline with realistic coloring */}
+            <Path
+              d={norwayPath}
+              fill="url(#norwayGradient)"
+              stroke={colors.primary}
+              strokeWidth={2}
+            />
+            
+            {/* Mountain ranges */}
+            {mountains.map((mountain, index) => (
+              <Path
+                key={`mountain-${index}`}
+                d={mountain}
+                fill="url(#mountainGradient)"
+                stroke="#FFFFFF"
+                strokeWidth={1}
+                opacity={0.8}
+              />
+            ))}
+            
+            {/* Fjords */}
+            {fjords.map((fjord, index) => (
+              <Path
+                key={`fjord-${index}`}
+                d={fjord}
+                fill="url(#fjordGradient)"
+                stroke="#1E90FF"
+                strokeWidth={1}
+                opacity={0.7}
+              />
+            ))}
+            
+            {/* Cities */}
+            {cities.map((city, index) => (
+              <G key={`city-${index}`}>
+                <Circle
+                  cx={city.x}
+                  cy={city.y}
+                  r={city.unlocked ? 6 : 4}
+                  fill={city.unlocked ? colors.primary : "#666"}
+                  stroke="#FFFFFF"
+                  strokeWidth={1}
+                />
+                {city.unlocked && (
+                  <SvgText
+                    x={city.x}
+                    y={city.y - 10}
+                    fontSize={12}
+                    fill={colors.text}
+                    textAnchor="middle"
+                    fontFamily={fonts.regular}
+                  >
+                    {city.name}
+                  </SvgText>
+                )}
+              </G>
+            ))}
+            
+            {/* Avatar */}
+            <Circle
+              cx={avatarPosition.x}
+              cy={avatarPosition.y}
+              r={8}
+              fill={colors.primary}
+              stroke="#FFFFFF"
+              strokeWidth={2}
+            />
+            <Circle
+              cx={avatarPosition.x}
+              cy={avatarPosition.y}
+              r={15}
+              fill={colors.primary}
+              opacity={0.3}
+            />
+          </G>
+        </Svg>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Navigation size={20} color={colors.primary} />
+          <Text style={styles.statValue}>{progress.distanceTraveled.toFixed(1)}km</Text>
+          <Text style={styles.statLabel}>Distance Traveled</Text>
+        </View>
+        
+        <View style={styles.statCard}>
+          <MapPin size={20} color={colors.primary} />
+          <Text style={styles.statValue}>{unlockedLandmarks.length}/{landmarks.length}</Text>
+          <Text style={styles.statLabel}>Landmarks Visited</Text>
+        </View>
+        
+        <View style={styles.statCard}>
+          <Trophy size={20} color={colors.primary} />
+          <Text style={styles.statValue}>{achievements.filter(a => a.unlocked).length}</Text>
+          <Text style={styles.statLabel}>Achievements</Text>
+        </View>
+      </View>
+
+      {nextLandmark && (
+        <View style={[styles.nextLandmarkCard, { backgroundColor: colors.card }]}>
+          <View style={styles.nextLandmarkHeader}>
+            <MapPin size={20} color={colors.primary} />
+            <Text style={styles.nextLandmarkTitle}>Next Destination</Text>
+          </View>
+          <Text style={styles.nextLandmarkName}>{nextLandmark.name}</Text>
+          <Text style={styles.nextLandmarkDistance}>
+            {((nextLandmark.distance - progress.distanceTraveled) * 1000).toFixed(0)}m to go
+          </Text>
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  compactContainer: {
-    marginVertical: 8,
-  },
-  compactCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-  },
-  compactHeader: {
-    marginBottom: 12,
-  },
-  compactTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  compactTitle: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.text,
-    marginLeft: 8,
-  },
-  compactSubtitle: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: colors.textSecondary,
-  },
-  compactMapContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  compactStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  compactStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  compactStatText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.textSecondary,
-    marginLeft: 4,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    padding: 20,
-    paddingTop: 40,
-  },
-  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
-  titleRow: {
+  titleSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: fonts.bold,
-    color: colors.text,
-    marginLeft: 8,
+    color: '#000000',
   },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: fonts.regular,
-    color: colors.textSecondary,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  progressContainer: {
-    width: '100%',
-    marginTop: 16,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 4,
-  },
-  progressTextRow: {
+  controls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 10,
   },
-  progressText: {
-    fontSize: 14,
-    fontFamily: fonts.medium,
-    color: colors.text,
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.accent,
-  },
-  content: {
-    padding: 20,
-  },
-  mapSection: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
-    color: colors.text,
-  },
-  mapControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  zoomButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
+  controlButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mapContainer: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
+    paddingVertical: 20,
   },
   map: {
     borderRadius: 12,
   },
-  statsSection: {
-    marginBottom: 24,
-  },
-  statsGrid: {
+  statsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
   statCard: {
-    width: '48%',
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  statCardGradient: {
-    padding: 16,
     alignItems: 'center',
-    borderRadius: 12,
+    flex: 1,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: fonts.bold,
-    color: colors.text,
-    marginTop: 8,
-    marginBottom: 4,
+    color: '#000000',
+    marginTop: 5,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.text,
-    textAlign: 'center',
-    opacity: 0.9,
+    fontFamily: fonts.regular,
+    color: '#666666',
+    marginTop: 2,
   },
-  nextLandmarkSection: {
-    marginBottom: 24,
+  nextLandmarkCard: {
+    margin: 20,
+    padding: 15,
+    borderRadius: 12,
   },
-  landmarkCard: {
-    borderRadius: 16,
-    padding: 20,
-  },
-  landmarkHeader: {
+  nextLandmarkHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 5,
   },
-  landmarkIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(74, 144, 226, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  nextLandmarkTitle: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: '#666666',
   },
-  landmarkInfo: {
-    flex: 1,
-  },
-  landmarkName: {
+  nextLandmarkName: {
     fontSize: 18,
     fontFamily: fonts.bold,
-    color: colors.text,
-    marginBottom: 2,
+    color: '#000000',
+    marginBottom: 5,
   },
-  landmarkCategory: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.primary,
-    textTransform: 'uppercase',
-  },
-  landmarkDescription: {
+  nextLandmarkDistance: {
     fontSize: 14,
     fontFamily: fonts.regular,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
+    color: '#666666',
   },
-  landmarkProgress: {
-    marginBottom: 12,
+  compactContainer: {
+    marginHorizontal: 20,
+    marginVertical: 10,
   },
-  landmarkDistance: {
-    fontSize: 16,
-    fontFamily: fonts.medium,
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  landmarkProgressBar: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  landmarkProgressFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 2,
-  },
-  landmarkFunFact: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  achievementsSection: {
-    marginBottom: 24,
-  },
-  achievementCard: {
+  compactCard: {
     borderRadius: 12,
-    padding: 16,
-    marginRight: 12,
-    minWidth: 150,
-    alignItems: 'center',
+    padding: 15,
   },
-  achievementTitle: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.text,
-    marginTop: 8,
-    marginBottom: 4,
-    textAlign: 'center',
+  compactHeader: {
+    marginBottom: 10,
   },
-  achievementDescription: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  syncButton: {
-    marginTop: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  syncButtonGradient: {
+  compactTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
+    gap: 8,
+    marginBottom: 5,
   },
-  syncButtonText: {
+  compactTitle: {
     fontSize: 16,
-    fontFamily: fonts.medium,
-    color: colors.text,
-    marginLeft: 8,
+    fontFamily: fonts.bold,
+    color: '#FFFFFF',
+  },
+  compactSubtitle: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  compactMapContainer: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  compactStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  compactStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  compactStatText: {
+    fontSize: 10,
+    fontFamily: fonts.regular,
+    color: '#FFFFFF',
+    opacity: 0.9,
   },
 }); 
