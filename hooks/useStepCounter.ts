@@ -75,25 +75,40 @@ export default function useStepCounter() {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
               
+              // Format dates properly for ISO8601DateFormatter
+              const formatDateForHealthKit = (date: Date) => {
+                return date.toISOString().split('.')[0] + 'Z';
+              };
+              
               const stepsResult = await HealthKit.getStepCount(
-                today.toISOString(),
-                new Date().toISOString()
+                formatDateForHealthKit(today),
+                formatDateForHealthKit(new Date())
               );
               
               if (stepsResult.success) {
                 setCurrentStepCount(stepsResult.steps);
                 
                 // Get distance data
-                const distanceResult = await HealthKit.getDistanceWalking(
-                  today.toISOString(),
-                  new Date().toISOString()
-                );
+                let distanceResult = { success: false, distance: 0 };
+                try {
+                  distanceResult = await HealthKit.getDistanceWalking(
+                    formatDateForHealthKit(today),
+                    formatDateForHealthKit(new Date())
+                  );
+                } catch (error) {
+                  console.log('[StepCounter] No distance data available for today');
+                }
                 
                 // Get calories data
-                const caloriesResult = await HealthKit.getActiveEnergyBurned(
-                  today.toISOString(),
-                  new Date().toISOString()
-                );
+                let caloriesResult = { success: false, calories: 0 };
+                try {
+                  caloriesResult = await HealthKit.getActiveEnergyBurned(
+                    formatDateForHealthKit(today),
+                    formatDateForHealthKit(new Date())
+                  );
+                } catch (error) {
+                  console.log('[StepCounter] No calories data available for today');
+                }
                 
                 // Log the steps with additional data if available
                 const stepLog = {
@@ -218,9 +233,14 @@ export default function useStepCounter() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
+        // Format dates properly for ISO8601DateFormatter
+        const formatDateForHealthKit = (date: Date) => {
+          return date.toISOString().split('.')[0] + 'Z';
+        };
+        
         const stepsResult = await HealthKit.getStepCount(
-          today.toISOString(),
-          new Date().toISOString()
+          formatDateForHealthKit(today),
+          formatDateForHealthKit(new Date())
         );
         
         if (stepsResult.success) {
@@ -272,25 +292,40 @@ export default function useStepCounter() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
+            // Format dates properly for ISO8601DateFormatter
+            const formatDateForHealthKit = (date: Date) => {
+              return date.toISOString().split('.')[0] + 'Z';
+            };
+            
             const stepsResult = await HealthKit.getStepCount(
-              today.toISOString(),
-              new Date().toISOString()
+              formatDateForHealthKit(today),
+              formatDateForHealthKit(new Date())
             );
             
             if (stepsResult.success) {
               setCurrentStepCount(stepsResult.steps);
               
               // Get distance data
-              const distanceResult = await HealthKit.getDistanceWalking(
-                today.toISOString(),
-                new Date().toISOString()
-              );
+              let distanceResult = { success: false, distance: 0 };
+              try {
+                distanceResult = await HealthKit.getDistanceWalking(
+                  formatDateForHealthKit(today),
+                  formatDateForHealthKit(new Date())
+                );
+              } catch (error) {
+                console.log('[StepCounter] No distance data available for today');
+              }
               
               // Get calories data
-              const caloriesResult = await HealthKit.getActiveEnergyBurned(
-                today.toISOString(),
-                new Date().toISOString()
-              );
+              let caloriesResult = { success: false, calories: 0 };
+              try {
+                caloriesResult = await HealthKit.getActiveEnergyBurned(
+                  formatDateForHealthKit(today),
+                  formatDateForHealthKit(new Date())
+                );
+              } catch (error) {
+                console.log('[StepCounter] No calories data available for today');
+              }
               
               // Log the steps with additional data if available
               const stepLog = {
@@ -371,24 +406,39 @@ export default function useStepCounter() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
+        // Format dates properly for ISO8601DateFormatter
+        const formatDateForHealthKit = (date: Date) => {
+          return date.toISOString().split('.')[0] + 'Z';
+        };
+        
         const stepsResult = await HealthKit.getStepCount(
-          today.toISOString(),
-          new Date().toISOString()
+          formatDateForHealthKit(today),
+          formatDateForHealthKit(new Date())
         );
         
         if (stepsResult.success) {
           setCurrentStepCount(stepsResult.steps);
           
           // Get additional data
-          const distanceResult = await HealthKit.getDistanceWalking(
-            today.toISOString(),
-            new Date().toISOString()
-          );
+          let distanceResult = { success: false, distance: 0 };
+          try {
+            distanceResult = await HealthKit.getDistanceWalking(
+              formatDateForHealthKit(today),
+              formatDateForHealthKit(new Date())
+            );
+          } catch (error) {
+            console.log('[StepCounter] No distance data available for today');
+          }
           
-          const caloriesResult = await HealthKit.getActiveEnergyBurned(
-            today.toISOString(),
-            new Date().toISOString()
-          );
+          let caloriesResult = { success: false, calories: 0 };
+          try {
+            caloriesResult = await HealthKit.getActiveEnergyBurned(
+              formatDateForHealthKit(today),
+              formatDateForHealthKit(new Date())
+            );
+          } catch (error) {
+            console.log('[StepCounter] No calories data available for today');
+          }
           
           // Log the steps
           const stepLog = {

@@ -76,7 +76,9 @@ class HealthKitService {
       'calories',
       'activity',
       'heartRate',
-      'sleep'
+      'sleep',
+      'weight',
+      'bodyMass'
     ];
 
     try {
@@ -107,9 +109,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.STEP_COUNT);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getStepCount(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -141,9 +148,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.DISTANCE_WALKING_RUNNING);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getDistanceWalking(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -175,9 +187,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.ACTIVE_ENERGY_BURNED);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getActiveEnergyBurned(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -209,9 +226,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.HEART_RATE);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getHeartRateSamples(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -248,9 +270,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.WORKOUT);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getWorkouts(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -347,9 +374,14 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.BODY_MASS);
 
     try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
       const result = await this.healthKit.getBodyMass(
-        startDate.toISOString(),
-        endDate.toISOString()
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
       );
 
       if (result.success) {
@@ -385,7 +417,12 @@ class HealthKitService {
     this.ensureAuthorized(HEALTH_DATA_TYPES.BODY_MASS);
 
     try {
-      const result = await this.healthKit.writeBodyMass(weight, date.toISOString());
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
+      const result = await this.healthKit.writeBodyMass(weight, formatDateForHealthKit(date));
       return result.success;
     } catch (error) {
       console.error('[HealthKitService] Failed to write body mass:', error);

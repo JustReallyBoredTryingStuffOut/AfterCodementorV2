@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from "react-native";
 import { TrendingUp, Plus, ArrowLeft, Trash2 } from "lucide-react-native";
+import Svg, { Path, Circle } from "react-native-svg";
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { useMacroStore } from "@/store/macroStore";
@@ -22,8 +23,21 @@ export default function WeightTracker({
   onBackPress
 }: WeightTrackerProps) {
   const router = useRouter();
-  const { weightLogs, calculateWeightProgress, getWeightTrend, removeWeightLog } = useHealthStore();
+  const { weightLogs, calculateWeightProgress, getWeightTrend, removeWeightLog, syncWeightFromHealthKit } = useHealthStore();
   const { userProfile } = useMacroStore();
+  
+  // Sync weight data from HealthKit when component mounts
+  useEffect(() => {
+    const syncWeightData = async () => {
+      try {
+        await syncWeightFromHealthKit();
+      } catch (error) {
+        console.error('Error syncing weight data:', error);
+      }
+    };
+    
+    syncWeightData();
+  }, [syncWeightFromHealthKit]);
   
   // Get weight progress
   const progress = calculateWeightProgress();
@@ -142,12 +156,20 @@ export default function WeightTracker({
       
       <View style={styles.header}>
         <Text style={styles.title}>Weight Tracker</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={handleAddWeight}
-        >
-          <Plus size={16} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.syncButton}
+            onPress={syncWeightFromHealthKit}
+          >
+            <Text style={styles.syncButtonText}>Sync</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={handleAddWeight}
+          >
+            <Plus size={16} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {weightLogs.length > 0 ? (
@@ -180,15 +202,15 @@ export default function WeightTracker({
           
           {weights.length > 1 && (
             <View style={styles.chartContainer}>
-              <svg width={chartWidth} height={chartHeight} style={styles.chart}>
-                <path
+              <Svg width={chartWidth} height={chartHeight} style={styles.chart}>
+                <Path
                   d={generatePath()}
                   stroke={colors.primary}
                   strokeWidth="2"
                   fill="none"
                 />
                 {points.map((point, index) => (
-                  <circle
+                  <Circle
                     key={index}
                     cx={point.x}
                     cy={point.y}
@@ -196,7 +218,7 @@ export default function WeightTracker({
                     fill={colors.primary}
                   />
                 ))}
-              </svg>
+              </Svg>
               
               {standalone && (
                 <View style={styles.chartLabels}>
@@ -214,31 +236,7 @@ export default function WeightTracker({
             </View>
           )}
           
-          {standalone && (
-            <View style={styles.recentLogsContainer}>
-              <Text style={styles.recentLogsTitle}>Recent Logs</Text>
-              {weightLogs
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 3)
-                .map((log) => (
-                  <View key={log.id} style={styles.recentLogItem}>
-                    <View style={styles.recentLogInfo}>
-                      <Text style={styles.recentLogWeight}>{log.weight.toFixed(1)} kg</Text>
-                      <Text style={styles.recentLogDate}>
-                        {new Date(log.date).toLocaleDateString()}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.deleteLogButton}
-                      onPress={() => handleDeleteWeight(log.id)}
-                    >
-                      <Trash2 size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              }
-            </View>
-          )}
+          {/* Recent logs are now handled by the parent component (WeightLogScreen) */}
           
           {standalone && progress.targetWeight > 0 && (
             <View style={styles.progressContainer}>
@@ -321,6 +319,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  syncButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  syncButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#22c55e",
   },
   addButton: {
     width: 32,

@@ -5,6 +5,21 @@ import { WeightLog, StepLog, HealthGoals, HealthDevice, ActivityLog, WaterIntake
 import { Platform } from "react-native";
 import HealthKitService from "../src/services/HealthKitService";
 
+// Initialize HealthKit service
+let healthKitInitialized = false;
+const initializeHealthKit = async () => {
+  if (Platform.OS === 'ios' && !healthKitInitialized) {
+    try {
+      await HealthKitService.initialize();
+      await HealthKitService.requestAllAuthorizations();
+      healthKitInitialized = true;
+      console.log('[HealthStore] HealthKit initialized successfully');
+    } catch (error) {
+      console.error('[HealthStore] Failed to initialize HealthKit:', error);
+    }
+  }
+};
+
 
 interface HealthState {
   weightLogs: WeightLog[];
@@ -95,6 +110,11 @@ interface HealthState {
   getDailyNote: (date: string) => DailyNote | undefined;
   removeDailyNote: (date: string) => void;
   
+  // HealthKit sync methods
+  syncWeightFromHealthKit: () => Promise<void>;
+  syncStepsFromHealthKit: () => Promise<void>;
+  writeWeightToHealthKit: (weight: number, date: Date) => Promise<boolean>;
+  
   // Device-specific methods
   isAppleWatchConnected: () => boolean;
   getConnectedDeviceById: (deviceId: string) => HealthDevice | undefined;
@@ -126,9 +146,17 @@ export const useHealthStore = create<HealthState>()(
       lastDeviceSync: null, // Last device sync timestamp
       dailyNotes: [], // Initialize with empty array
       
-      addWeightLog: (log) => set((state) => ({
-        weightLogs: [...state.weightLogs, log]
-      })),
+      addWeightLog: (log) => set((state) => {
+        // Check if a log with the same ID already exists
+        const existingLog = state.weightLogs.find(l => l.id === log.id);
+        if (existingLog) {
+          console.log(`[HealthStore] Weight log with ID ${log.id} already exists, skipping`);
+          return state;
+        }
+        return {
+          weightLogs: [...state.weightLogs, log]
+        };
+      }),
       
       updateWeightLog: (log) => set((state) => ({
         weightLogs: state.weightLogs.map(l => l.id === log.id ? log : l)
@@ -757,7 +785,176 @@ export const useHealthStore = create<HealthState>()(
           console.error("Error importing REAL data from device:", error);
           return false;
         }
-      }
+      },
+      
+      // HealthKit sync methods
+      syncWeightFromHealthKit: async () => {
+        if (Platform.OS !== 'ios') {
+          console.log('[HealthStore] HealthKit not available on this platform');
+          return;
+        }
+        
+        try {
+          console.log('[HealthStore] Syncing weight data from HealthKit...');
+          
+          // Initialize HealthKit if not already done
+          await initializeHealthKit();
+          
+          // Check if HealthKit is available (HealthKit is only available on iOS)
+          const isAvailable = Platform.OS === 'ios';
+          console.log('[HealthStore] HealthKit available:', isAvailable);
+          
+          if (!isAvailable) {
+            console.log('[HealthStore] HealthKit is not available on this device');
+            return;
+          }
+          
+          // Request authorization specifically for body mass
+          const authResult = await HealthKitService.requestAuthorization(['bodyMass']);
+          console.log('[HealthStore] Body mass authorization result:', authResult);
+          
+          if (!authResult) {
+            console.log('[HealthStore] Body mass authorization denied');
+            return;
+          }
+          
+          // Get weight data from the last 365 days to ensure we get recent data
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - 365);
+          
+          console.log(`[HealthStore] Fetching weight data from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+          
+          const weightSamples = await HealthKitService.getBodyMass(startDate, endDate);
+          
+          if (weightSamples.length > 0) {
+            console.log(`[HealthStore] Found ${weightSamples.length} weight samples from HealthKit`);
+            
+            // Sort by date to get the most recent first
+            const sortedSamples = weightSamples.sort((a, b) => 
+              new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+            );
+            
+            // Convert HealthKit samples to WeightLog format
+            const weightLogs: WeightLog[] = sortedSamples.map((sample, index) => ({
+              id: `healthkit_${sample.startDate.getTime()}_${index}`,
+              date: sample.startDate.toISOString(),
+              weight: sample.value,
+              notes: `Imported from ${sample.source}`,
+              source: 'Apple Health'
+            }));
+            
+            // Add the weight logs to the store, checking for duplicates
+            let addedCount = 0;
+            weightLogs.forEach(log => {
+              const existingLog = get().weightLogs.find(l => l.id === log.id);
+              if (!existingLog) {
+                get().addWeightLog(log);
+                addedCount++;
+              }
+            });
+            
+            console.log(`[HealthStore] Added ${addedCount} new weight entries from HealthKit (${weightLogs.length - addedCount} were duplicates)`);
+            
+            console.log(`[HealthStore] Successfully synced ${weightLogs.length} weight entries from HealthKit`);
+            console.log(`[HealthStore] Most recent weight: ${sortedSamples[0].value} kg from ${sortedSamples[0].startDate.toDateString()}`);
+          } else {
+            console.log('[HealthStore] No weight data found in HealthKit');
+            console.log('[HealthStore] This could mean:');
+            console.log('[HealthStore] 1. No weight data has been entered in Apple Health');
+            console.log('[HealthStore] 2. Weight data exists but is not accessible');
+            console.log('[HealthStore] 3. Authorization was not granted for body mass data');
+          }
+          
+        } catch (error) {
+          console.error('[HealthStore] Error syncing weight from HealthKit:', error);
+          console.error('[HealthStore] Error details:', error.message);
+        }
+      },
+      
+      syncStepsFromHealthKit: async () => {
+        if (Platform.OS !== 'ios') {
+          console.log('[HealthStore] HealthKit not available on this platform');
+          return;
+        }
+        
+        try {
+          console.log('[HealthStore] Syncing step data from HealthKit...');
+          
+          // Initialize HealthKit if not already done
+          await initializeHealthKit();
+          
+          // Get step data for today
+          const stepCount = await HealthKitService.getTodayStepCount();
+          
+          if (stepCount > 0) {
+            const today = new Date();
+            const stepLog: StepLog = {
+              id: today.toISOString(),
+              date: today.toISOString(),
+              steps: stepCount,
+              distance: calculateDistance(stepCount),
+              calories: calculateCaloriesBurned(stepCount),
+              source: 'Apple Health'
+            };
+            
+            get().addStepLog(stepLog);
+            console.log(`[HealthStore] Successfully synced ${stepCount} steps from HealthKit`);
+          } else {
+            console.log('[HealthStore] No step data found in HealthKit for today');
+          }
+          
+                  } catch (error) {
+            console.error('[HealthStore] Error syncing steps from HealthKit:', error);
+          }
+        },
+        
+        writeWeightToHealthKit: async (weight: number, date: Date) => {
+          if (Platform.OS !== 'ios') {
+            console.log('[HealthStore] HealthKit not available on this platform');
+            return false;
+          }
+          
+          try {
+            console.log(`[HealthStore] Writing weight ${weight} kg to HealthKit for ${date.toDateString()}`);
+            
+            // Initialize HealthKit if not already done
+            await initializeHealthKit();
+            
+            // Request authorization for body mass
+            const authResult = await HealthKitService.requestAuthorization(['bodyMass']);
+            if (!authResult) {
+              console.log('[HealthStore] Body mass authorization denied');
+              return false;
+            }
+            
+            // Write weight to HealthKit
+            const result = await HealthKitService.writeBodyMass(weight, date);
+            
+            if (result) {
+              console.log('[HealthStore] Successfully wrote weight to HealthKit');
+              
+              // Also add to local store
+              const weightLog: WeightLog = {
+                id: `local_${date.getTime()}`,
+                date: date.toISOString(),
+                weight: weight,
+                notes: 'Added via app',
+                source: 'App'
+              };
+              
+              get().addWeightLog(weightLog);
+              return true;
+            } else {
+              console.log('[HealthStore] Failed to write weight to HealthKit');
+              return false;
+            }
+            
+          } catch (error) {
+            console.error('[HealthStore] Error writing weight to HealthKit:', error);
+            return false;
+          }
+        }
     }),
     {
       name: "health-storage",

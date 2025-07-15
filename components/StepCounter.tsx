@@ -139,17 +139,17 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
           <TouchableOpacity
             style={[
               styles.trackingButton,
-              isTracking ? styles.trackingActiveButton : {}
+              isTrackingSteps ? styles.trackingActiveButton : {}
             ]}
-            onPress={isTracking ? stopTracking : startTracking}
+            onPress={isTrackingSteps ? stopTracking : startTracking}
           >
-            {isTracking ? (
+            {isTrackingSteps ? (
               <Pause size={16} color="#FFFFFF" />
             ) : (
               <Play size={16} color="#FFFFFF" />
             )}
             <Text style={styles.trackingButtonText}>
-              {isTracking ? "Pause" : "Track"}
+              {isTrackingSteps ? "Pause" : "Track"}
             </Text>
           </TouchableOpacity>
         </View>

@@ -50,9 +50,8 @@ class HealthKitModule: NSObject, RCTBridgeModule {
                         typesToRead.insert(sleepType)
                     }
                 case "workouts":
-                    if let workoutType = HKObjectType.workoutType() {
-                        typesToRead.insert(workoutType)
-                    }
+                    let workoutType = HKObjectType.workoutType()
+                    typesToRead.insert(workoutType)
                 case "weight":
                     if let weightType = HKObjectType.quantityType(forIdentifier: .bodyMass) {
                         typesToRead.insert(weightType)
