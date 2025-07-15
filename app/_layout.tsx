@@ -8,7 +8,7 @@ import { useMacroStore } from '@/store/macroStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
-import { Picker } from '@react-native-picker/picker';
+import CustomDropdown from '@/components/CustomDropdown';
 import Button from '@/components/Button';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -66,12 +66,40 @@ export default function RootLayout() {
   const scrollViewRef = useRef(null);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   
+  // Dropdown options for onboarding
+  const genderOptions = [
+    { label: "Male", value: "male" },
+    { label: "Female", value: "female" },
+    { label: "Other", value: "other" },
+    { label: "Prefer not to say", value: "prefer-not-to-say" }
+  ];
+  
+  const activityLevelOptions = [
+    { label: "Sedentary (Little or no exercise)", value: "sedentary" },
+    { label: "Lightly active (1-3 days/week)", value: "light" },
+    { label: "Moderately active (3-5 days/week)", value: "moderate" },
+    { label: "Very active (6-7 days/week)", value: "active" },
+    { label: "Extra active (Very hard exercise & physical job)", value: "very_active" }
+  ];
+  
+  const fitnessGoalOptions = [
+    { label: "Lose Weight", value: "lose" },
+    { label: "Maintain Weight", value: "maintain" },
+    { label: "Gain Muscle", value: "gain" }
+  ];
+  
+  const fitnessLevelOptions = [
+    { label: "Beginner", value: "beginner" },
+    { label: "Intermediate", value: "intermediate" },
+    { label: "Advanced", value: "advanced" }
+  ];
+  
   // Handle app state changes to prevent crashes
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       if (appState.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground
-        console.log('App has come to the foreground');
+
         // Refresh data when app comes to foreground
         try {
           // Refresh HealthKit data
@@ -87,7 +115,7 @@ export default function RootLayout() {
         }
       } else if (appState === 'active' && nextAppState.match(/inactive|background/)) {
         // App has gone to the background
-        console.log('App has gone to the background');
+
         // Save any pending state
         try {
           // Ensure all stores are persisted
@@ -538,67 +566,36 @@ export default function RootLayout() {
       content: (
         <View style={styles.formContainer}>
           <Text style={styles.formLabel}>Gender (Optional)</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={gender}
-              onValueChange={(value) => setGender(value)}
-              style={styles.picker}
-              dropdownIconColor="#FFFFFF"
-              itemStyle={Platform.OS === 'ios' ? styles.pickerItemIOS : undefined}
-            >
-              <Picker.Item label="Male" value="male" color="#FFFFFF" />
-              <Picker.Item label="Female" value="female" color="#FFFFFF" />
-              <Picker.Item label="Other" value="other" color="#FFFFFF" />
-              <Picker.Item label="Prefer not to say" value="prefer-not-to-say" color="#FFFFFF" />
-            </Picker>
-          </View>
+          <CustomDropdown
+            value={gender}
+            onValueChange={setGender}
+            options={genderOptions}
+            placeholder="Select gender"
+          />
 
           <Text style={styles.formLabel}>Activity Level</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={activityLevel}
-              onValueChange={(value) => setActivityLevel(value)}
-              style={styles.picker}
-              dropdownIconColor="#FFFFFF"
-              itemStyle={Platform.OS === 'ios' ? styles.pickerItemIOS : undefined}
-            >
-              <Picker.Item label="Sedentary (Little or no exercise)" value="sedentary" color="#FFFFFF" />
-              <Picker.Item label="Lightly active (1-3 days/week)" value="light" color="#FFFFFF" />
-              <Picker.Item label="Moderately active (3-5 days/week)" value="moderate" color="#FFFFFF" />
-              <Picker.Item label="Very active (6-7 days/week)" value="active" color="#FFFFFF" />
-              <Picker.Item label="Extra active (Very hard exercise & physical job)" value="very_active" color="#FFFFFF" />
-            </Picker>
-          </View>
+          <CustomDropdown
+            value={activityLevel}
+            onValueChange={setActivityLevel}
+            options={activityLevelOptions}
+            placeholder="Select activity level"
+          />
 
           <Text style={styles.formLabel}>Fitness Goal</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={fitnessGoal}
-              onValueChange={(value) => setFitnessGoal(value)}
-              style={styles.picker}
-              dropdownIconColor="#FFFFFF"
-              itemStyle={Platform.OS === 'ios' ? styles.pickerItemIOS : undefined}
-            >
-              <Picker.Item label="Lose Weight" value="lose" color="#FFFFFF" />
-              <Picker.Item label="Maintain Weight" value="maintain" color="#FFFFFF" />
-              <Picker.Item label="Gain Muscle" value="gain" color="#FFFFFF" />
-            </Picker>
-          </View>
+          <CustomDropdown
+            value={fitnessGoal}
+            onValueChange={setFitnessGoal}
+            options={fitnessGoalOptions}
+            placeholder="Select fitness goal"
+          />
 
           <Text style={styles.formLabel}>Fitness Level</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={fitnessLevel}
-              onValueChange={(value) => setFitnessLevel(value)}
-              style={styles.picker}
-              dropdownIconColor="#FFFFFF"
-              itemStyle={Platform.OS === 'ios' ? styles.pickerItemIOS : undefined}
-            >
-              <Picker.Item label="Beginner" value="beginner" color="#FFFFFF" />
-              <Picker.Item label="Intermediate" value="intermediate" color="#FFFFFF" />
-              <Picker.Item label="Advanced" value="advanced" color="#FFFFFF" />
-            </Picker>
-          </View>
+          <CustomDropdown
+            value={fitnessLevel}
+            onValueChange={setFitnessLevel}
+            options={fitnessLevelOptions}
+            placeholder="Select fitness level"
+          />
         </View>
       ),
       action: () => handleContinue(),
@@ -1072,25 +1069,7 @@ const styles = StyleSheet.create({
   formColumn: {
     width: '48%',
   },
-  pickerContainer: {
-    backgroundColor: '#232323',
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#1A1A1A',
-    overflow: 'hidden',
-  },
-  picker: {
-    color: '#FFFFFF',
-    height: 50,
-    backgroundColor: '#232323',
-  },
-  pickerItemIOS: {
-    fontSize: 16,
-    height: 120,
-    color: '#FFFFFF',
-    backgroundColor: '#232323',
-  },
+
   inputHint: {
     fontSize: 12,
     color: '#AAAAAA',

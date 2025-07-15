@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Pla
 import { Play, Pause, Award, RefreshCw, Watch, AlertTriangle, Zap } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
+import { useGamificationStore } from "@/store/gamificationStore";
 import useStepCounter from "@/hooks/useStepCounter";
 
 type StepCounterProps = {
@@ -11,6 +12,7 @@ type StepCounterProps = {
 
 export default function StepCounter({ compact = false }: StepCounterProps) {
   const { healthGoals, isAppleWatchConnected } = useHealthStore();
+  const { getActiveDailyQuests } = useGamificationStore();
   const { 
     currentStepCount, 
     isPedometerAvailable, 
@@ -31,8 +33,27 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
   
   const [isRetrying, setIsRetrying] = useState(false);
   
+  // Get step goal from daily quests or use default
+  const getStepGoal = () => {
+    const activeQuests = getActiveDailyQuests();
+    const stepQuest = activeQuests.find(quest => quest.category === "steps");
+    
+    if (stepQuest) {
+      // Extract number from description like "Take 5,000 steps today"
+      const match = stepQuest.description.match(/(\d{1,3}(?:,\d{3})*)/);
+      if (match) {
+        return parseInt(match[1].replace(/,/g, ''));
+      }
+    }
+    
+    // Fallback to user's custom goal or default
+    return healthGoals.dailySteps || 10000;
+  };
+  
+  const stepGoal = getStepGoal();
+  
   // Calculate progress percentage
-  const progressPercentage = Math.min(100, (currentStepCount / healthGoals.dailySteps) * 100);
+  const progressPercentage = Math.min(100, (currentStepCount / stepGoal) * 100);
   
   if (Platform.OS === "web") {
     return (
@@ -110,7 +131,7 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
             />
           </View>
           <Text style={styles.compactGoal}>
-            {Math.round(progressPercentage)}% of {healthGoals.dailySteps.toLocaleString()}
+            {Math.round(progressPercentage)}% of {stepGoal.toLocaleString()}
           </Text>
         </View>
       </View>
@@ -210,7 +231,7 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
             {Math.round(progressPercentage)}% of daily goal
           </Text>
           <Text style={styles.goalText}>
-            Goal: {healthGoals.dailySteps.toLocaleString()} steps
+            Goal: {stepGoal.toLocaleString()} steps
           </Text>
         </View>
       </View>

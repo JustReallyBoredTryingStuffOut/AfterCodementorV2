@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform, ActivityIndicator } from "react-native";
 import { useRouter, Stack } from "expo-router";
-import { Smartphone, Watch, Bluetooth, RefreshCw, Plus, ChevronRight, ArrowLeft, Zap, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react-native";
+import { Smartphone, Watch, RefreshCw, Plus, ChevronRight, ArrowLeft, Zap, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { HealthDevice } from "@/types";
@@ -19,219 +19,24 @@ export default function HealthDevicesScreen() {
     getDeviceSyncHistory
   } = useHealthStore();
   
-  const [isScanning, setIsScanning] = useState(false);
   const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
-  const [availableDevices, setAvailableDevices] = useState<any[]>([]);
-  const [showAvailableDevices, setShowAvailableDevices] = useState(false);
-  const [bluetoothError, setBluetoothError] = useState<string | null>(null);
-  const [bluetoothState, setBluetoothState] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<"unknown" | "granted" | "denied">("unknown");
-  const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize Bluetooth and check permissions
-  useEffect(() => {
-    const initializeBluetooth = async () => {
-      setIsInitializing(true);
-      
-      try {
-        // Check Bluetooth state
-        setBluetoothState("unavailable");
-        setBluetoothError("Bluetooth is not available or is turned off");
-        
-        // Request permissions if on iOS
-        if (Platform.OS === 'ios') {
-          setPermissionStatus("granted");
-        }
-      } catch (error: any) {
-        console.error("Error initializing Bluetooth:", error);
-        setBluetoothError(`Error initializing Bluetooth: ${error.message}`);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    
-    initializeBluetooth();
-  }, []);
-  
-  // Set up Bluetooth event listeners
-  useEffect(() => {
-    if (Platform.OS !== 'ios') {
-      setBluetoothState("unavailable");
-      setBluetoothError("Core Bluetooth is only available on iOS");
-      return;
-    }
 
-    // Listen for Bluetooth state changes
-    const stateListener = () => {
-      setBluetoothState("poweredOn");
-      setBluetoothError(null);
-    };
-
-    // Listen for discovered devices
-    const discoveryListener = (device: any) => {
-      // Check if we already have this device in the list
-      setAvailableDevices(prevDevices => {
-        const exists = prevDevices.some(d => d.id === device.id);
-        if (exists) return prevDevices;
-        
-        // Determine device type based on name
-        const deviceType = getDeviceType(device.name);
-        const deviceModel = getDeviceModel(device.name);
-        
-        const newDevice = {
-          ...device,
-          type: deviceType,
-          model: deviceModel,
-          batteryLevel: device.batteryLevel || (deviceType === 'appleWatch' ? 85 : undefined)
-        };
-        
-        return [...prevDevices, newDevice];
-      });
-      
-      setShowAvailableDevices(true);
-    };
-
-    // Listen for device connection events
-    const connectionListener = (device: any) => {
-      Alert.alert(
-        "Device Connected",
-        `${device.name} has been connected successfully. You can now sync your health data.`,
-        [{ text: "OK" }]
-      );
-      
-      // Add the device to the store
-      const newDevice: HealthDevice = {
-        id: device.id,
-        name: device.name,
-        type: device.type,
-        model: device.model,
-        connected: true,
-        lastSynced: new Date().toISOString(),
-        capabilities: getDeviceCapabilities(device.type),
-        batteryLevel: device.batteryLevel || 100,
-      };
-      
-      addDevice(newDevice);
-      setShowAvailableDevices(false);
-    };
-
-    // Listen for device disconnection events
-    const disconnectionListener = (device: any) => {
-      updateDevice({
-        ...device,
-        connected: false,
-      });
-      
-      Alert.alert(
-        "Device Disconnected",
-        `${device.name} has been disconnected.`,
-        [{ text: "OK" }]
-      );
-    };
-    
-    // Listen for connection errors
-    const errorListener = (error: any) => {
-      Alert.alert(
-        "Connection Error",
-        `Failed to connect to device: ${error}`,
-        [{ text: "OK" }]
-      );
-    };
-
-    // Clean up listeners when component unmounts
-    return () => {
-      stateListener();
-      discoveryListener();
-      connectionListener();
-      disconnectionListener();
-      errorListener();
-    };
-  }, [availableDevices, connectedDevices, addDevice, updateDevice]);
   
   const handleScanDevices = async () => {
-    setBluetoothError(null);
-    setIsScanning(true);
-    setShowAvailableDevices(false);
-    setAvailableDevices([]);
-    
-    if (Platform.OS !== 'ios') {
-      setIsScanning(false);
-      setBluetoothError("Core Bluetooth is only available on iOS");
-      return;
-    }
-    
-    // Check Bluetooth state before scanning
-    try {
-      // Check permissions before scanning
-      if (permissionStatus !== "granted") {
-        setPermissionStatus("granted");
-        
-        if (!permissionStatus) {
-          setBluetoothError("Bluetooth permissions are required to scan for devices. Please enable them in your device settings.");
-          setIsScanning(false);
-          return;
-        }
-      }
-      
-      // Start scanning for Bluetooth devices
-      // This is a placeholder implementation. In a real app, you would use a native module to scan for devices
-      setTimeout(() => {
-        if (isScanning) {
-          setIsScanning(false);
-          
-          if (availableDevices.length === 0) {
-            setBluetoothError("No compatible devices found nearby. Make sure your device is in pairing mode and try again.");
-          }
-        }
-      }, 10000);
-    } catch (error: any) {
-      console.error("Error scanning for devices:", error);
-      setBluetoothError(error.message || "An error occurred while scanning for devices");
-      setIsScanning(false);
-    }
+    Alert.alert(
+      "Device Scanning",
+      "Device scanning functionality has been removed. This app now focuses on HealthKit integration for iOS and Google Fit for Android.",
+      [{ text: "OK" }]
+    );
   };
   
   const handleConnectDevice = async (device: any) => {
-    try {
-      // Show pairing request dialog
-      Alert.alert(
-        "Pairing Request",
-        `"Fitness App" would like to pair with "${device.name}". ${
-          device.type === "appleWatch" 
-            ? "Check your Apple Watch to approve this connection."
-            : "Check your device to approve this connection."
-        }`,
-        [
-          { 
-            text: "Cancel", 
-            style: "cancel" 
-          },
-          { 
-            text: "Pair", 
-            onPress: async () => {
-              try {
-                // Connect to the device
-                // This is a placeholder implementation. In a real app, you would use a native module to connect to the device
-              } catch (error: any) {
-                console.error("Error connecting to device:", error);
-                Alert.alert(
-                  "Connection Error",
-                  error.message || "An error occurred while connecting to the device",
-                  [{ text: "OK" }]
-                );
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error("Error connecting to device:", error);
-      Alert.alert(
-        "Connection Error",
-        "An unexpected error occurred while connecting to the device",
-        [{ text: "OK" }]
-      );
-    }
+    Alert.alert(
+      "Device Connection",
+      "Device connection functionality has been removed. This app now focuses on HealthKit integration for iOS and Google Fit for Android.",
+      [{ text: "OK" }]
+    );
   };
   
   const handleSyncDevice = async (deviceId: string) => {
@@ -292,57 +97,11 @@ export default function HealthDevicesScreen() {
   };
   
   const toggleDeviceConnection = async (device: HealthDevice) => {
-    if (!device.connected) {
-      // If reconnecting, show a confirmation dialog
-      Alert.alert(
-        "Reconnect Device",
-        `Would you like to reconnect to ${device.name}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Reconnect", 
-            onPress: async () => {
-              try {
-                // Connect to the device using Core Bluetooth
-                // This is a placeholder implementation. In a real app, you would use a native module to connect to the device
-              } catch (error: any) {
-                console.error("Error reconnecting to device:", error);
-                Alert.alert(
-                  "Reconnection Error",
-                  error.message || "An error occurred while reconnecting to the device",
-                  [{ text: "OK" }]
-                );
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      // If disconnecting, show a confirmation dialog
-      Alert.alert(
-        "Disconnect Device",
-        `Are you sure you want to disconnect from ${device.name}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { 
-            text: "Disconnect", 
-            onPress: async () => {
-              try {
-                // Disconnect from the device using Core Bluetooth
-                // This is a placeholder implementation. In a real app, you would use a native module to disconnect from the device
-              } catch (error: any) {
-                console.error("Error disconnecting from device:", error);
-                Alert.alert(
-                  "Disconnection Error",
-                  error.message || "An error occurred while disconnecting from the device",
-                  [{ text: "OK" }]
-                );
-              }
-            }
-          }
-        ]
-      );
-    }
+    Alert.alert(
+      "Device Connection",
+      "Device connection functionality has been removed. This app now focuses on HealthKit integration for iOS and Google Fit for Android.",
+      [{ text: "OK" }]
+    );
   };
   
   const handleRemoveDevice = (deviceId: string) => {
@@ -357,12 +116,6 @@ export default function HealthDevicesScreen() {
         {
           text: "Remove",
           onPress: () => {
-            // Disconnect from the device if it's connected
-            const device = connectedDevices.find(d => d.id === deviceId);
-            if (device && device.connected) {
-              // This is a placeholder implementation. In a real app, you would use a native module to disconnect from the device
-            }
-            
             // Remove the device from the store
             removeDevice(deviceId);
           },

@@ -227,7 +227,7 @@ export default function ActiveWorkoutScreen() {
         setSound(sound);
         setSoundLoaded(true);
       } catch (error) {
-        console.log('Error loading sound', error);
+    
         setSoundError(error instanceof Error ? error : new Error('Unknown error loading sound'));
         // Still mark as loaded so the app can continue without sound
         setSoundLoaded(true);
@@ -238,7 +238,7 @@ export default function ActiveWorkoutScreen() {
     
     return () => {
       if (sound) {
-        sound.unloadAsync().catch(err => console.log('Error unloading sound', err));
+  
       }
     };
   }, []);
@@ -637,7 +637,7 @@ export default function ActiveWorkoutScreen() {
   
   // New handlers for exercise reordering and completion
   const handleToggleExpand = (id: string) => {
-    console.log('handleToggleExpand called for exercise ID:', id);
+
     
     // Don't allow expanding completed exercises, but allow collapsing them
     const exerciseIndex = activeWorkout.exercises.findIndex(e => e.id === id);
@@ -646,12 +646,11 @@ export default function ActiveWorkoutScreen() {
       const isCompleted = isExerciseCompleted(exerciseIndex);
       const isCurrentlyExpanded = expandedExercises[id] || false;
       
-      console.log('Exercise completed status:', isCompleted);
-      console.log('Currently expanded:', isCurrentlyExpanded);
+      
       
       if (isCompleted && isCurrentlyExpanded) {
         // Allow collapsing completed exercises
-        console.log('Collapsing completed exercise');
+    
         setExpandedExercises(prev => ({
           ...prev,
           [id]: false
@@ -659,12 +658,12 @@ export default function ActiveWorkoutScreen() {
         return;
       } else if (isCompleted && !isCurrentlyExpanded) {
         // Don't allow expanding completed exercises
-        console.log('Preventing expansion of completed exercise');
+    
         return;
       }
     }
     
-    console.log('Toggling expansion for exercise');
+
     setExpandedExercises(prev => ({
       ...prev,
       [id]: !prev[id]
@@ -707,14 +706,14 @@ export default function ActiveWorkoutScreen() {
   };
   
   const handleMarkExerciseCompleted = (exerciseIndex: number) => {
-    console.log('handleMarkExerciseCompleted called for exerciseIndex:', exerciseIndex);
+
     
     markExerciseCompleted(exerciseIndex, true);
     
     // Debug: Check if the exercise is now marked as completed
     setTimeout(() => {
       const isCompleted = isExerciseCompleted(exerciseIndex);
-      console.log('Exercise completed status after marking:', isCompleted);
+  
     }, 100);
     
     if (Platform.OS !== 'web') {
@@ -730,11 +729,11 @@ export default function ActiveWorkoutScreen() {
     }
     
     // Immediately collapse the completed exercise and lock it
-    console.log('Collapsing exercise with ID:', activeWorkout.exercises[exerciseIndex].id);
+
     setExpandedExercises(prev => {
       const newState = { ...prev };
       newState[activeWorkout.exercises[exerciseIndex].id] = false;
-      console.log('New expanded state:', newState);
+  
       return newState;
     });
     
@@ -745,7 +744,7 @@ export default function ActiveWorkoutScreen() {
       const isNextCompleted = isExerciseCompleted(nextExerciseIndex);
       
       if (!isNextCompleted) {
-        console.log('Expanding next exercise with ID:', nextExerciseLog.id);
+    
         setExpandedExercises(prev => ({
           ...prev,
           [nextExerciseLog.id]: true

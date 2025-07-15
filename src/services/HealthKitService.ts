@@ -33,7 +33,7 @@ class HealthKitService {
       }
 
       this.isInitialized = true;
-      console.log('[HealthKitService] Successfully initialized');
+  
       return true;
     } catch (error) {
       console.error('[HealthKitService] Failed to initialize:', error);
@@ -52,7 +52,7 @@ class HealthKitService {
       
       if (result.authorized) {
         dataTypes.forEach(type => this.authorizedDataTypes.add(type));
-        console.log('[HealthKitService] Authorization granted for:', dataTypes);
+    
       } else {
         console.warn('[HealthKitService] Authorization denied for:', dataTypes);
       }
@@ -83,7 +83,7 @@ class HealthKitService {
 
     try {
       const result = await this.requestAuthorization(allDataTypes);
-      console.log('[HealthKitService] All authorizations result:', result);
+  
       return result;
     } catch (error) {
       console.error('[HealthKitService] Failed to request all authorizations:', error);

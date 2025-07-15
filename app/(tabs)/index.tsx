@@ -48,6 +48,8 @@ import WorkoutCard from "@/components/WorkoutCard";
 import MacroProgress from "@/components/MacroProgress";
 import StepCounter from "@/components/StepCounter";
 import WeightTracker from "@/components/WeightTracker";
+import CaloriesTracker from "@/components/CaloriesTracker";
+import { JourneyMap } from "../../components/JourneyMap";
 import Button from "@/components/Button";
 import GoalPrompt from "@/components/GoalPrompt";
 import MoodSelector from "@/components/MoodSelector";
@@ -812,11 +814,15 @@ export default function HomeScreen() {
       )}
       
       <View style={styles.quickAccessContainer}>
-        <StepCounter compact />
-        <WeightTracker 
-          compact 
-          onAddWeight={() => router.push("/weight-log")}
-        />
+        <View style={styles.stepsWeightContainer}>
+          <StepCounter compact />
+          <WeightTracker 
+            compact 
+            onAddWeight={() => router.push("/weight-log")}
+          />
+        </View>
+        <CaloriesTracker compact />
+        <JourneyMap compact />
       </View>
       
       {/* Mood-based Advice Banner */}
@@ -1503,6 +1509,10 @@ const styles = StyleSheet.create({
   },
   quickAccessContainer: {
     marginBottom: 24,
+    gap: 12,
+  },
+  stepsWeightContainer: {
+    gap: 8,
   },
   section: {
     marginBottom: 24,

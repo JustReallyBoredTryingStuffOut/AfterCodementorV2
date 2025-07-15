@@ -26,6 +26,98 @@ const CATEGORIES = [
   { id: "other", label: "Other" }
 ];
 
+// Category-specific goal suggestions
+const GOAL_SUGGESTIONS = {
+  weight: [
+    "Lose 0.5kg this week",
+    "Lose 2kg this month",
+    "Maintain current weight for a month",
+    "Gain 0.5kg of muscle this month",
+    "Reduce body fat by 1% this month",
+    "Track weight daily for a week",
+    "Stay within 1kg of target weight",
+    "Lose 5kg over 3 months"
+  ],
+  workout: [
+    "Go to the gym 3 times this week",
+    "Complete 4 workouts this month",
+    "Try a new workout class this week",
+    "Increase bench press by 5kg this month",
+    "Run 5km three times this week",
+    "Do 50 pushups daily for a week",
+    "Complete 100 squats by end of week",
+    "Practice yoga for 20 minutes daily",
+    "Do 3 HIIT workouts this week",
+    "Increase deadlift weight by 5kg",
+    "Complete 20 pull-ups by end of week",
+    "Do 100 kettlebell swings daily"
+  ],
+  nutrition: [
+    "Eat 5 servings of vegetables daily",
+    "Track all meals in the app every day",
+    "Reduce sugar intake to under 25g daily",
+    "Increase protein intake to 120g daily",
+    "Meal prep lunches for the entire week",
+    "Try a new healthy recipe each week",
+    "Cut out added sugars for the week",
+    "Increase daily fiber intake to 30g",
+    "Reduce sodium intake to under 2000mg daily",
+    "Add a vegetable to every meal",
+    "Try a new vegetable or fruit each day",
+    "Reduce processed food consumption by 50%",
+    "Increase daily protein to 1.5g per kg bodyweight",
+    "Track macros for all meals this week",
+    "Try intermittent fasting for 5 days",
+    "Maintain calorie deficit of 300 kcal daily"
+  ],
+  water: [
+    "Drink 2L of water daily",
+    "Drink 3L of water daily for hydration",
+    "Increase water intake by 500ml daily",
+    "Drink a glass of water before each meal",
+    "Drink 500ml water immediately after waking",
+    "Drink 8 glasses of water daily",
+    "Replace one soda with water daily",
+    "Drink water instead of coffee for a week"
+  ],
+  steps: [
+    "Walk 10,000 steps every day this week",
+    "Take 10,000 steps daily for a month",
+    "Walk at least 8,000 steps every day",
+    "Reach 12,000 steps three times this week",
+    "Complete 10,000 steps before noon",
+    "Increase daily step count by 1000 steps",
+    "Walk or bike for all trips under 2km",
+    "Take the stairs instead of elevator daily",
+    "Climb stairs instead of using elevator",
+    "Cycle to work 3 days this week"
+  ],
+  health: [
+    "Get 8 hours of sleep each night",
+    "Meditate for 10 minutes daily",
+    "Practice mindful eating at every meal",
+    "Stretch for 15 minutes after each workout",
+    "Limit screen time to 1 hour before sleep",
+    "Practice deep breathing for 5 minutes daily",
+    "Meditate for 5 minutes every morning",
+    "Stretch for 10 minutes before bedtime",
+    "Practice proper posture throughout day",
+    "Do 15 minutes of mobility work daily",
+    "Practice yoga for 15 minutes daily",
+    "Take progress photos weekly"
+  ],
+  other: [
+    "Read a fitness book this month",
+    "Join a fitness challenge",
+    "Find a workout buddy",
+    "Set up a home gym space",
+    "Learn about nutrition basics",
+    "Create a workout playlist",
+    "Set up a fitness tracking system",
+    "Research healthy recipes"
+  ]
+};
+
 export default function AddGoalScreen() {
   const router = useRouter();
   const { addGoal, scheduleGoalReminder } = useAiStore();
@@ -35,6 +127,7 @@ export default function AddGoalScreen() {
   const [timeframe, setTimeframe] = useState<"weekly" | "monthly">("weekly");
   const [waterBottleSize, setWaterBottleSize] = useState("");
   const [showWaterBottleInput, setShowWaterBottleInput] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Check if goal is about water intake
   useEffect(() => {
@@ -119,6 +212,12 @@ export default function AddGoalScreen() {
     }
   };
   
+  // Handle selecting a goal suggestion
+  const handleSelectSuggestion = (suggestion: string) => {
+    setGoalText(suggestion);
+    setShowSuggestions(false);
+  };
+  
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -176,6 +275,55 @@ export default function AddGoalScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+          
+          {/* Goal Suggestions Section */}
+          <View style={styles.suggestionsSection}>
+            <TouchableOpacity
+              style={styles.suggestionsHeader}
+              onPress={() => setShowSuggestions(!showSuggestions)}
+            >
+              <Text style={styles.suggestionsTitle}>
+                {showSuggestions ? "Hide" : "Show"} Goal Suggestions
+              </Text>
+            </TouchableOpacity>
+            
+            {showSuggestions && (
+              <View style={styles.suggestionsContainer}>
+                <Text style={styles.suggestionsSubtitle}>
+                  Popular {category.charAt(0).toUpperCase() + category.slice(1)} Goals:
+                </Text>
+                <View style={styles.suggestionsList}>
+                  {GOAL_SUGGESTIONS[category as keyof typeof GOAL_SUGGESTIONS]?.map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSelectSuggestion(suggestion)}
+                    >
+                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+          
+          {/* Informational Text for Beginners */}
+          <View style={styles.infoSection}>
+            <Text style={styles.infoTitle}>💡 Goal Setting Tips for Beginners</Text>
+            <Text style={styles.infoText}>
+              When starting your fitness journey, focus on building sustainable habits rather than achieving rapid results. 
+              Research shows that individuals who set realistic, long-term goals are 2.5x more likely to maintain their progress.
+            </Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.infoBold}>Quality over Quantity:</Text> Instead of setting multiple goals, choose 1-2 meaningful objectives that align with your lifestyle and current fitness level.
+            </Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.infoBold}>Start Small:</Text> Begin with manageable goals that you can consistently achieve. This builds confidence and creates momentum for more challenging objectives.
+            </Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.infoBold}>Track Progress:</Text> Regular monitoring helps you stay accountable and provides valuable insights into what works best for your body and schedule.
+            </Text>
           </View>
           
           <Text style={styles.label}>Timeframe</Text>
@@ -342,5 +490,72 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: "600",
+  },
+  suggestionsSection: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  suggestionsHeader: {
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
+    textAlign: "center",
+  },
+  suggestionsContainer: {
+    marginTop: 12,
+  },
+  suggestionsSubtitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  suggestionsList: {
+    gap: 8,
+  },
+  suggestionItem: {
+    backgroundColor: colors.card,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  infoSection: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  infoBold: {
+    fontWeight: "600",
+    color: colors.text,
   },
 });

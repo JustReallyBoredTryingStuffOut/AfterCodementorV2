@@ -13,7 +13,7 @@ const initializeHealthKit = async () => {
       await HealthKitService.initialize();
       await HealthKitService.requestAllAuthorizations();
       healthKitInitialized = true;
-      console.log('[HealthStore] HealthKit initialized successfully');
+  
     } catch (error) {
       console.error('[HealthStore] Failed to initialize HealthKit:', error);
     }
@@ -150,7 +150,7 @@ export const useHealthStore = create<HealthState>()(
         // Check if a log with the same ID already exists
         const existingLog = state.weightLogs.find(l => l.id === log.id);
         if (existingLog) {
-          console.log(`[HealthStore] Weight log with ID ${log.id} already exists, skipping`);
+      
           return state;
         }
         return {
@@ -694,7 +694,7 @@ export const useHealthStore = create<HealthState>()(
         }
         
         try {
-          console.log(`[HealthStore] Importing REAL data from ${device.name} for ${dataType}`);
+      
           
           // Initialize HealthKit if not already done
           await HealthKitService.initialize();
@@ -716,7 +716,7 @@ export const useHealthStore = create<HealthState>()(
           const end = new Date(endDate);
           
           if (dataType === "steps" || dataType === "all") {
-            console.log("[HealthStore] Fetching REAL step data from HealthKit...");
+        
             
             try {
               // Get REAL step count data from HealthKit (returns single number for date range)
@@ -729,7 +729,7 @@ export const useHealthStore = create<HealthState>()(
                 calories: calculateCaloriesBurned(stepCount)
               }];
               
-              console.log(`[HealthStore] Retrieved REAL step count: ${stepCount} steps`);
+          
               
             } catch (error) {
               console.error("[HealthStore] Error fetching step data:", error);
@@ -738,7 +738,7 @@ export const useHealthStore = create<HealthState>()(
           }
           
           if (dataType === "activities" || dataType === "all") {
-            console.log("[HealthStore] Fetching REAL workout data from HealthKit...");
+        
             
             try {
               // Get REAL workout data from HealthKit
@@ -760,7 +760,7 @@ export const useHealthStore = create<HealthState>()(
                 elevationGain: 0
               }));
               
-              console.log(`[HealthStore] Retrieved ${realData.activities?.length || 0} REAL workouts`);
+          
               
             } catch (error) {
               console.error("[HealthStore] Error fetching workout data:", error);
@@ -778,7 +778,7 @@ export const useHealthStore = create<HealthState>()(
             dataType === "all" ? ["steps", "activities"] : [dataType]
           );
           
-          console.log(`[HealthStore] Successfully imported REAL data from ${device.name}`);
+      
           return true;
           
         } catch (error) {
@@ -790,31 +790,24 @@ export const useHealthStore = create<HealthState>()(
       // HealthKit sync methods
       syncWeightFromHealthKit: async () => {
         if (Platform.OS !== 'ios') {
-          console.log('[HealthStore] HealthKit not available on this platform');
           return;
         }
         
         try {
-          console.log('[HealthStore] Syncing weight data from HealthKit...');
-          
           // Initialize HealthKit if not already done
           await initializeHealthKit();
           
           // Check if HealthKit is available (HealthKit is only available on iOS)
           const isAvailable = Platform.OS === 'ios';
-          console.log('[HealthStore] HealthKit available:', isAvailable);
           
           if (!isAvailable) {
-            console.log('[HealthStore] HealthKit is not available on this device');
             return;
           }
           
           // Request authorization specifically for body mass
           const authResult = await HealthKitService.requestAuthorization(['bodyMass']);
-          console.log('[HealthStore] Body mass authorization result:', authResult);
           
           if (!authResult) {
-            console.log('[HealthStore] Body mass authorization denied');
             return;
           }
           
@@ -823,13 +816,9 @@ export const useHealthStore = create<HealthState>()(
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - 365);
           
-          console.log(`[HealthStore] Fetching weight data from ${startDate.toDateString()} to ${endDate.toDateString()}`);
-          
           const weightSamples = await HealthKitService.getBodyMass(startDate, endDate);
           
           if (weightSamples.length > 0) {
-            console.log(`[HealthStore] Found ${weightSamples.length} weight samples from HealthKit`);
-            
             // Sort by date to get the most recent first
             const sortedSamples = weightSamples.sort((a, b) => 
               new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
@@ -853,17 +842,6 @@ export const useHealthStore = create<HealthState>()(
                 addedCount++;
               }
             });
-            
-            console.log(`[HealthStore] Added ${addedCount} new weight entries from HealthKit (${weightLogs.length - addedCount} were duplicates)`);
-            
-            console.log(`[HealthStore] Successfully synced ${weightLogs.length} weight entries from HealthKit`);
-            console.log(`[HealthStore] Most recent weight: ${sortedSamples[0].value} kg from ${sortedSamples[0].startDate.toDateString()}`);
-          } else {
-            console.log('[HealthStore] No weight data found in HealthKit');
-            console.log('[HealthStore] This could mean:');
-            console.log('[HealthStore] 1. No weight data has been entered in Apple Health');
-            console.log('[HealthStore] 2. Weight data exists but is not accessible');
-            console.log('[HealthStore] 3. Authorization was not granted for body mass data');
           }
           
         } catch (error) {
@@ -874,13 +852,10 @@ export const useHealthStore = create<HealthState>()(
       
       syncStepsFromHealthKit: async () => {
         if (Platform.OS !== 'ios') {
-          console.log('[HealthStore] HealthKit not available on this platform');
           return;
         }
         
         try {
-          console.log('[HealthStore] Syncing step data from HealthKit...');
-          
           // Initialize HealthKit if not already done
           await initializeHealthKit();
           
@@ -899,9 +874,6 @@ export const useHealthStore = create<HealthState>()(
             };
             
             get().addStepLog(stepLog);
-            console.log(`[HealthStore] Successfully synced ${stepCount} steps from HealthKit`);
-          } else {
-            console.log('[HealthStore] No step data found in HealthKit for today');
           }
           
                   } catch (error) {
@@ -911,20 +883,16 @@ export const useHealthStore = create<HealthState>()(
         
         writeWeightToHealthKit: async (weight: number, date: Date) => {
           if (Platform.OS !== 'ios') {
-            console.log('[HealthStore] HealthKit not available on this platform');
             return false;
           }
           
           try {
-            console.log(`[HealthStore] Writing weight ${weight} kg to HealthKit for ${date.toDateString()}`);
-            
             // Initialize HealthKit if not already done
             await initializeHealthKit();
             
             // Request authorization for body mass
             const authResult = await HealthKitService.requestAuthorization(['bodyMass']);
             if (!authResult) {
-              console.log('[HealthStore] Body mass authorization denied');
               return false;
             }
             
@@ -932,8 +900,6 @@ export const useHealthStore = create<HealthState>()(
             const result = await HealthKitService.writeBodyMass(weight, date);
             
             if (result) {
-              console.log('[HealthStore] Successfully wrote weight to HealthKit');
-              
               // Also add to local store
               const weightLog: WeightLog = {
                 id: `local_${date.getTime()}`,
@@ -946,7 +912,6 @@ export const useHealthStore = create<HealthState>()(
               get().addWeightLog(weightLog);
               return true;
             } else {
-              console.log('[HealthStore] Failed to write weight to HealthKit');
               return false;
             }
             
