@@ -44,6 +44,8 @@ export default function NotificationsScreen() {
   
   useEffect(() => {
     checkNotificationPermissions();
+    console.log('Current settings:', settings);
+    console.log('Has permission:', hasPermission);
   }, []);
   
   const checkNotificationPermissions = async () => {
@@ -53,6 +55,7 @@ export default function NotificationsScreen() {
     }
     
     const { status } = await Notifications.getPermissionsAsync();
+    console.log('Notification permission status:', status);
     setHasPermission(status === "granted");
   };
   
@@ -76,25 +79,39 @@ export default function NotificationsScreen() {
   };
   
   const toggleNotifications = async (value: boolean) => {
-    if (value && !hasPermission) {
-      const { status } = await Notifications.requestPermissionsAsync();
-      const permissionGranted = status === "granted";
-      setHasPermission(permissionGranted);
+    console.log('Toggle notifications called with value:', value, 'hasPermission:', hasPermission);
+    
+    if (value) {
+      // User wants to enable notifications
+      if (!hasPermission) {
+        // Request permission if not granted
+        const { status } = await Notifications.requestPermissionsAsync();
+        const permissionGranted = status === "granted";
+        setHasPermission(permissionGranted);
 
-      if (permissionGranted) {
+        if (permissionGranted) {
+          updateSettings({
+            ...settings,
+            enabled: true,
+          });
+          setHasChanges(true);
+        } else {
+          Alert.alert(
+            "Permission Required",
+            "Please enable notifications in your device settings to receive reminders"
+          );
+          return;
+        }
+      } else {
+        // Permission already granted, just enable
         updateSettings({
           ...settings,
           enabled: true,
         });
         setHasChanges(true);
-      } else {
-        Alert.alert(
-          "Permission Required",
-          "Please enable notifications in your device settings to receive reminders"
-        );
-        return;
       }
-    } else if (!value) {
+    } else {
+      // User wants to disable notifications
       updateSettings({
         ...settings,
         enabled: false,
