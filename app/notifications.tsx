@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Switch, ScrollView, Alert, Platform, TouchableO
 import { Stack, useRouter } from "expo-router";
 import { Bell, Clock, Dumbbell, Utensils, Calendar, ArrowLeft, Save } from "lucide-react-native";
 import { colors } from "@/constants/colors";
-import { useNotificationStore } from "@/store/notificationStore";
+import { useNotificationStoreState } from "@/store/notificationStore";
 import * as Notifications from "expo-notifications";
 import Button from "@/components/Button";
 
@@ -15,7 +15,8 @@ export default function NotificationsScreen() {
   
   let notificationStore;
   try {
-    notificationStore = useNotificationStore();
+    notificationStore = useNotificationStoreState();
+    console.log('Notification store loaded:', notificationStore);
   } catch (error) {
     console.error('Error accessing notification store:', error);
     setStoreError(true);
@@ -23,7 +24,7 @@ export default function NotificationsScreen() {
   
   // Destructure with safe defaults
   const { 
-    settings = { enabled: false }, 
+    settings = { enabled: false, workoutReminders: false, mealReminders: false, waterReminders: false, stepReminders: false, dailySummary: false, longWorkoutAlert: false }, 
     updateSettings = () => {},
     workoutReminders = { minutesBefore: 30, sound: true },
     updateWorkoutReminder = () => {},
@@ -149,6 +150,7 @@ export default function NotificationsScreen() {
   };
   
   const updateSettingWithChange = (newSettings: any) => {
+    console.log('Updating settings:', newSettings);
     updateSettings(newSettings);
     setHasChanges(true);
   };
