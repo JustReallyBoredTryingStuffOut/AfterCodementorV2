@@ -17,16 +17,19 @@ import {
   Camera, 
   Lock,
   ChevronRight,
-  Trophy
+  Trophy,
+  MapPin
 } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useThemeStore } from "@/store/themeStore";
 import { useGamificationStore } from "@/store/gamificationStore";
+import { useJourneyStore } from "@/store/journeyStore";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { isDarkMode } = useThemeStore();
   const { gamificationEnabled, toggleGamification } = useGamificationStore();
+  const { settings, toggleJourney } = useJourneyStore();
   
   const profileSections = [
     {
@@ -108,6 +111,27 @@ export default function ProfileScreen() {
         <Switch
           value={gamificationEnabled}
           onValueChange={toggleGamification}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor="#fff"
+        />
+      </View>
+      
+      {/* Journey System Toggle */}
+      <View style={styles.gamificationContainer}>
+        <View style={styles.gamificationLeft}>
+          <View style={styles.gamificationIconContainer}>
+            <MapPin size={20} color={colors.primary} />
+          </View>
+          <View style={styles.gamificationTextContainer}>
+            <Text style={styles.gamificationTitle}>Enable Virtual Journey</Text>
+            <Text style={styles.gamificationDescription}>
+              Track your progress through Norway's landscapes
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={settings.enabled}
+          onValueChange={toggleJourney}
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor="#fff"
         />

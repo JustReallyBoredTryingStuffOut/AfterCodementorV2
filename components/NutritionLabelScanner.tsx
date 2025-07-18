@@ -1,10 +1,104 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Platform, Alert, Modal, Pressable, TextInput, ScrollView } from "react-native";
-import { Camera, ArrowLeft, X, ScanLine, Edit3, Save, Info } from "lucide-react-native";
+import { Camera, ArrowLeft, X, Edit3, Save, Info } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { colors } from "@/constants/colors";
 import Button from "@/components/Button";
+
+// Custom scanning frame icon component
+const ScanningFrameIcon = ({ size = 64, color = colors.primary, style }: { size?: number, color?: string, style?: any }) => {
+  const strokeWidth = Math.max(2, size / 32);
+  const cornerLength = size * 0.2;
+  const centerLineLength = size * 0.6;
+  
+  return (
+    <View style={[{ width: size, height: size }, style]}>
+      {/* Top-left corner */}
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: cornerLength,
+        height: strokeWidth,
+        backgroundColor: color,
+      }} />
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: strokeWidth,
+        height: cornerLength,
+        backgroundColor: color,
+      }} />
+      
+      {/* Top-right corner */}
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: cornerLength,
+        height: strokeWidth,
+        backgroundColor: color,
+      }} />
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: strokeWidth,
+        height: cornerLength,
+        backgroundColor: color,
+      }} />
+      
+      {/* Bottom-left corner */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        width: cornerLength,
+        height: strokeWidth,
+        backgroundColor: color,
+      }} />
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        width: strokeWidth,
+        height: cornerLength,
+        backgroundColor: color,
+      }} />
+      
+      {/* Bottom-right corner */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: cornerLength,
+        height: strokeWidth,
+        backgroundColor: color,
+      }} />
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: strokeWidth,
+        height: cornerLength,
+        backgroundColor: color,
+      }} />
+      
+      {/* Center horizontal line */}
+      <View style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        width: centerLineLength,
+        height: strokeWidth,
+        backgroundColor: color,
+        transform: [{ translateX: -centerLineLength / 2 }, { translateY: -strokeWidth / 2 }],
+      }} />
+    </View>
+  );
+};
 
 type NutritionLabelScannerProps = {
   onNutritionScanned: (nutrition: {
@@ -13,6 +107,8 @@ type NutritionLabelScannerProps = {
     protein: number;
     carbs: number;
     fat: number;
+    quantity: string;
+    servingSize: string;
   }) => void;
   onCancel: () => void;
 };
@@ -36,18 +132,25 @@ export default function NutritionLabelScanner({ onNutritionScanned, onCancel }: 
   const [scanError, setScanError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [quantity, setQuantity] = useState("1");
+  const [servingSize, setServingSize] = useState("");
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [editedResult, setEditedResult] = useState<{
     name: string;
     calories: string;
     protein: string;
     carbs: string;
     fat: string;
+    quantity: string;
+    servingSize: string;
   }>({
     name: "",
     calories: "",
     protein: "",
     carbs: "",
     fat: "",
+    quantity: "1",
+    servingSize: "",
   });
   
   const requestPermissions = async () => {
@@ -281,9 +384,19 @@ export default function NutritionLabelScanner({ onNutritionScanned, onCancel }: 
   };
   
   const handleSave = () => {
-    if (scanResult) {
-      onNutritionScanned(scanResult);
-    }
+    if (!scanResult) return;
+    
+    const quantityMultiplier = parseFloat(quantity) || 1;
+    
+    onNutritionScanned({
+      name: scanResult.name,
+      calories: Math.round(scanResult.calories * quantityMultiplier),
+      protein: Math.round(scanResult.protein * quantityMultiplier),
+      carbs: Math.round(scanResult.carbs * quantityMultiplier),
+      fat: Math.round(scanResult.fat * quantityMultiplier),
+      quantity: quantity,
+      servingSize: servingSize
+    });
   };
   
   const handleRetake = () => {
@@ -297,15 +410,15 @@ export default function NutritionLabelScanner({ onNutritionScanned, onCancel }: 
       <View style={styles.container}>
         <View style={styles.content}>
           <View style={styles.instructionContainer}>
-            <View style={styles.instructionHeader}>
-              <ScanLine size={64} color={colors.primary} style={styles.instructionIcon} />
-              <TouchableOpacity 
-                style={styles.infoButton}
-                onPress={() => setShowInfoModal(true)}
-              >
-                <Info size={24} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
+                      <View style={styles.instructionHeader}>
+            <ScanningFrameIcon size={64} color={colors.primary} style={styles.instructionIcon} />
+            <TouchableOpacity 
+              style={styles.infoButton}
+              onPress={() => setShowInfoModal(true)}
+            >
+              <Info size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
             <Text style={styles.instructionTitle}>Scan Nutrition Label</Text>
             <Text style={styles.instructionText}>
               Take a clear photo of the nutrition facts label on your food package. 
@@ -349,7 +462,7 @@ export default function NutritionLabelScanner({ onNutritionScanned, onCancel }: 
             <Button
               title="Scan Nutrition Label"
               onPress={handleScanLabel}
-              icon={<ScanLine size={20} color={colors.white} />}
+              icon={<ScanningFrameIcon size={20} color={colors.white} />}
               style={styles.scanButton}
             />
           </View>
@@ -414,6 +527,102 @@ export default function NutritionLabelScanner({ onNutritionScanned, onCancel }: 
                 <View style={styles.nutritionItem}>
                   <Text style={styles.nutritionLabel}>Fat</Text>
                   <Text style={styles.nutritionValue}>{scanResult.fat}g</Text>
+                </View>
+              </View>
+              
+              {/* Serving size info */}
+              {servingSize && (
+                <Text style={styles.servingSizeText}>Per: {servingSize}</Text>
+              )}
+            </View>
+            
+            {/* Quantity Selection */}
+            <View style={styles.quantityCard}>
+              <Text style={styles.quantityTitle}>How much did you consume?</Text>
+              
+              <View style={styles.quantityInputContainer}>
+                <View style={styles.quantityInput}>
+                  <Text style={styles.quantityLabel}>Quantity:</Text>
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity 
+                      style={styles.quantityButton}
+                      onPress={() => {
+                        const currentQty = parseInt(quantity) || 1;
+                        if (currentQty > 1) {
+                          setQuantity((currentQty - 1).toString());
+                        }
+                      }}
+                    >
+                      <Text style={styles.quantityButtonText}>-</Text>
+                    </TouchableOpacity>
+                    
+                    <Text style={styles.quantityValue}>{quantity}</Text>
+                    
+                    <TouchableOpacity 
+                      style={styles.quantityButton}
+                      onPress={() => {
+                        const currentQty = parseInt(quantity) || 1;
+                        setQuantity((currentQty + 1).toString());
+                      }}
+                    >
+                      <Text style={styles.quantityButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                <View style={styles.quantityExamples}>
+                  <Text style={styles.quantityExamplesTitle}>Quick Options:</Text>
+                  <View style={styles.quantityExamplesButtons}>
+                    <TouchableOpacity 
+                      style={styles.quantityExampleButton}
+                      onPress={() => setQuantity("0.5")}
+                    >
+                      <Text style={styles.quantityExampleText}>Half</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.quantityExampleButton}
+                      onPress={() => setQuantity("1")}
+                    >
+                      <Text style={styles.quantityExampleText}>1 Serving</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.quantityExampleButton}
+                      onPress={() => setQuantity("2")}
+                    >
+                      <Text style={styles.quantityExampleText}>2 Servings</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              
+              {/* Calculated totals */}
+              <View style={styles.calculatedTotals}>
+                <Text style={styles.calculatedTitle}>Your Total Intake:</Text>
+                <View style={styles.calculatedGrid}>
+                  <View style={styles.calculatedItem}>
+                    <Text style={styles.calculatedLabel}>Calories</Text>
+                    <Text style={styles.calculatedValue}>
+                      {Math.round((scanResult.calories * parseFloat(quantity)) || 0)}
+                    </Text>
+                  </View>
+                  <View style={styles.calculatedItem}>
+                    <Text style={styles.calculatedLabel}>Protein</Text>
+                    <Text style={styles.calculatedValue}>
+                      {Math.round((scanResult.protein * parseFloat(quantity)) || 0)}g
+                    </Text>
+                  </View>
+                  <View style={styles.calculatedItem}>
+                    <Text style={styles.calculatedLabel}>Carbs</Text>
+                    <Text style={styles.calculatedValue}>
+                      {Math.round((scanResult.carbs * parseFloat(quantity)) || 0)}g
+                    </Text>
+                  </View>
+                  <View style={styles.calculatedItem}>
+                    <Text style={styles.calculatedLabel}>Fat</Text>
+                    <Text style={styles.calculatedValue}>
+                      {Math.round((scanResult.fat * parseFloat(quantity)) || 0)}g
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -978,5 +1187,124 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.success,
     fontWeight: "500",
+  },
+  servingSizeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  quantityCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  quantityTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  quantityInputContainer: {
+    marginBottom: 16,
+  },
+  quantityInput: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  quantityLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 8,
+    padding: 4,
+  },
+  quantityButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+  },
+  quantityButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.white,
+  },
+  quantityValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+    marginHorizontal: 16,
+    minWidth: 30,
+    textAlign: "center",
+  },
+  quantityExamples: {
+    marginTop: 12,
+  },
+  quantityExamplesTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  quantityExamplesButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  quantityExampleButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 6,
+    marginHorizontal: 2,
+    alignItems: "center",
+  },
+  quantityExampleText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  calculatedTotals: {
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  calculatedTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  calculatedGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  calculatedItem: {
+    alignItems: "center",
+  },
+  calculatedLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  calculatedValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
   },
 }); 

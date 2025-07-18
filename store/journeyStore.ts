@@ -33,6 +33,7 @@ export interface JourneyProgress {
   progressPercentage: number;
   journeyStarted: string;
   lastUpdated: string;
+  isStarted: boolean; // New flag to track if journey has been started
 }
 
 export interface JourneyAchievement {
@@ -64,6 +65,7 @@ interface JourneyState {
   
   // Actions
   initializeJourney: () => void;
+  startJourney: () => void;
   updateProgress: (steps: number) => void;
   syncWithHealthKit: () => Promise<void>;
   unlockLandmark: (landmarkId: string) => void;
@@ -88,6 +90,8 @@ interface JourneyState {
 }
 
 // Norway landmarks data - Starting from southernmost point and going north
+// Total journey: 2,500 km (realistic driving route from Lindesnes to Nordkapp)
+// Total steps needed: 3,500,000 steps (1,400 steps per km average)
 const norwegianLandmarks: NorwegianLandmark[] = [
   {
     id: 'lindesnes',
@@ -97,14 +101,24 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     distanceFromStart: 0,
     category: 'nature',
     funFact: 'Lindesnes Lighthouse is Norway\'s oldest lighthouse, first lit in 1655.',
-    unlocked: true
+    unlocked: false
+  },
+  {
+    id: 'kristiansand',
+    name: 'Kristiansand',
+    description: 'The largest city in Southern Norway, known for its beaches and cultural festivals.',
+    location: { latitude: 58.1600, longitude: 8.0000 },
+    distanceFromStart: 80,
+    category: 'city',
+    funFact: 'Kristiansand is home to the largest music festival in Norway, the Quart Festival.',
+    unlocked: false
   },
   {
     id: 'stavanger',
     name: 'Stavanger',
     description: 'The oil capital of Norway with beautiful coastal scenery.',
     location: { latitude: 58.9700, longitude: 5.7331 },
-    distanceFromStart: 150,
+    distanceFromStart: 200,
     category: 'city',
     funFact: 'Stavanger is known for its white wooden houses and is the gateway to the famous Preikestolen.',
     unlocked: false
@@ -114,7 +128,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Preikestolen (Pulpit Rock)',
     description: 'One of Norway\'s most famous natural attractions.',
     location: { latitude: 58.9864, longitude: 6.1103 },
-    distanceFromStart: 180,
+    distanceFromStart: 250,
     category: 'nature',
     funFact: 'The cliff rises 604 meters above the Lysefjord and is one of Norway\'s most photographed sites.',
     unlocked: false
@@ -124,7 +138,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Bergen',
     description: 'The gateway to the fjords and a UNESCO World Heritage city.',
     location: { latitude: 60.3913, longitude: 5.3221 },
-    distanceFromStart: 350,
+    distanceFromStart: 450,
     category: 'city',
     funFact: 'Bergen is known as the "City of Seven Mountains" and has the most rainfall of any European city.',
     unlocked: false
@@ -134,7 +148,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Oslo',
     description: 'The capital and largest city of Norway, known for its museums, parks, and vibrant culture.',
     location: { latitude: 59.9139, longitude: 10.7522 },
-    distanceFromStart: 500,
+    distanceFromStart: 650,
     category: 'city',
     funFact: 'Oslo was named the European Green Capital in 2019 for its environmental initiatives.',
     unlocked: false
@@ -144,7 +158,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Geirangerfjord',
     description: 'One of the most beautiful fjords in Norway.',
     location: { latitude: 62.1014, longitude: 7.2061 },
-    distanceFromStart: 700,
+    distanceFromStart: 900,
     category: 'nature',
     funFact: 'The Geirangerfjord is a UNESCO World Heritage site and one of the most visited tourist attractions in Norway.',
     unlocked: false
@@ -154,9 +168,19 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Trondheim',
     description: 'Norway\'s third-largest city and former capital.',
     location: { latitude: 63.4305, longitude: 10.3951 },
-    distanceFromStart: 900,
+    distanceFromStart: 1200,
     category: 'city',
     funFact: 'Trondheim was the capital of Norway during the Viking Age and is home to the Nidaros Cathedral.',
+    unlocked: false
+  },
+  {
+    id: 'mo-i-rana',
+    name: 'Mo i Rana',
+    description: 'A city in Northern Norway known for its steel industry and Arctic Circle location.',
+    location: { latitude: 66.3167, longitude: 14.1333 },
+    distanceFromStart: 1600,
+    category: 'city',
+    funFact: 'Mo i Rana is located just south of the Arctic Circle and is known for its steel production.',
     unlocked: false
   },
   {
@@ -164,7 +188,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Bodø',
     description: 'A coastal city known for its stunning scenery and the Saltstraumen whirlpool.',
     location: { latitude: 67.2804, longitude: 14.4050 },
-    distanceFromStart: 1200,
+    distanceFromStart: 1800,
     category: 'nature',
     funFact: 'Bodø is home to the world\'s strongest tidal current, the Saltstraumen whirlpool.',
     unlocked: false
@@ -174,7 +198,7 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Tromsø',
     description: 'The gateway to the Arctic and the Northern Lights.',
     location: { latitude: 69.6492, longitude: 18.9553 },
-    distanceFromStart: 1500,
+    distanceFromStart: 2200,
     category: 'adventure',
     funFact: 'Tromsø is the largest city in Northern Norway and is known as the "Paris of the North".',
     unlocked: false
@@ -184,19 +208,9 @@ const norwegianLandmarks: NorwegianLandmark[] = [
     name: 'Nordkapp (North Cape)',
     description: 'The northernmost point of mainland Europe, offering spectacular views of the Arctic Ocean.',
     location: { latitude: 71.1707, longitude: 25.7833 },
-    distanceFromStart: 1800,
+    distanceFromStart: 2500,
     category: 'adventure',
     funFact: 'Nordkapp is considered the northernmost point of Europe and is a popular destination for midnight sun viewing.',
-    unlocked: false
-  },
-  {
-    id: 'north-cape',
-    name: 'North Cape',
-    description: 'The northernmost point of mainland Europe.',
-    location: { latitude: 71.1707, longitude: 25.7833 },
-    distanceFromStart: 1500,
-    category: 'adventure',
-    funFact: 'The North Cape is the northernmost point of mainland Europe and offers spectacular views of the Arctic Ocean.',
     unlocked: false
   }
 ];
@@ -222,13 +236,22 @@ const journeyAchievements: JourneyAchievement[] = [
     target: 1
   },
   {
+    id: 'kristiansand-visitor',
+    title: 'Kristiansand Visitor',
+    description: 'Reach the largest city in Southern Norway',
+    category: 'landmark',
+    unlocked: false,
+    progress: 0,
+    target: 80
+  },
+  {
     id: 'stavanger-visitor',
     title: 'Stavanger Visitor',
     description: 'Reach the beautiful coastal city of Stavanger',
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 150
+    target: 200
   },
   {
     id: 'preikestolen-climber',
@@ -237,7 +260,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 180
+    target: 250
   },
   {
     id: 'bergen-explorer',
@@ -246,7 +269,16 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 350
+    target: 450
+  },
+  {
+    id: 'oslo-explorer',
+    title: 'Oslo Explorer',
+    description: 'Reach the capital city of Norway',
+    category: 'landmark',
+    unlocked: false,
+    progress: 0,
+    target: 650
   },
   {
     id: 'fjord-explorer',
@@ -255,7 +287,16 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 700
+    target: 900
+  },
+  {
+    id: 'trondheim-explorer',
+    title: 'Trondheim Explorer',
+    description: 'Reach Norway\'s third-largest city',
+    category: 'landmark',
+    unlocked: false,
+    progress: 0,
+    target: 1200
   },
   {
     id: 'arctic-adventurer',
@@ -264,7 +305,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 1500
+    target: 2200
   },
   {
     id: 'north-cape-conqueror',
@@ -273,7 +314,7 @@ const journeyAchievements: JourneyAchievement[] = [
     category: 'landmark',
     unlocked: false,
     progress: 0,
-    target: 1800
+    target: 2500
   },
   {
     id: 'week-warrior',
@@ -296,13 +337,15 @@ const journeyAchievements: JourneyAchievement[] = [
 ];
 
 const defaultSettings: JourneySettings = {
-  enabled: true,
+  enabled: false,
   country: 'norway',
   startDate: new Date().toISOString(),
   dailyStepGoal: 10000,
-  distanceMultiplier: 0.0008, // 1 step ≈ 0.8 meters
+  distanceMultiplier: 0.000714, // 1 step ≈ 0.714 meters (1,400 steps per km)
   autoSync: true
 };
+
+
 
 const defaultProgress: JourneyProgress = {
   totalSteps: 0,
@@ -311,7 +354,8 @@ const defaultProgress: JourneyProgress = {
   distanceTraveled: 0,
   progressPercentage: 0,
   journeyStarted: new Date().toISOString(),
-  lastUpdated: new Date().toISOString()
+  lastUpdated: new Date().toISOString(),
+  isStarted: false
 };
 
 export const useJourneyStore = create<JourneyState>()(
@@ -335,6 +379,28 @@ export const useJourneyStore = create<JourneyState>()(
         }
       },
       
+      startJourney: () => {
+        const { settings } = get();
+        console.log('[JourneyStore] startJourney called, settings.enabled:', settings.enabled);
+        if (!settings.enabled) return;
+        
+        const startDate = new Date().toISOString();
+        console.log('[JourneyStore] Starting journey with date:', startDate);
+        set({
+          progress: {
+            ...defaultProgress,
+            journeyStarted: startDate,
+            lastUpdated: startDate,
+            isStarted: true
+          },
+          settings: {
+            ...settings,
+            startDate: startDate
+          }
+        });
+        console.log('[JourneyStore] Journey started successfully');
+      },
+      
       updateProgress: (steps: number) => {
         const { settings, progress, landmarks } = get();
         if (!settings.enabled) return;
@@ -345,9 +411,9 @@ export const useJourneyStore = create<JourneyState>()(
         const newDistanceTraveled = progress.distanceTraveled + newDistance;
         
         // Calculate new position (simplified - moves along a straight line)
-        const progressPercentage = Math.min(newDistanceTraveled / 1500, 1); // 1500km is total journey
-            const newLatitude = 57.9833 + (progressPercentage * 13.1874); // Lindesnes to North Cape latitude difference
-    const newLongitude = 7.0500 + (progressPercentage * 18.7333); // Lindesnes to North Cape longitude difference
+        const progressPercentage = Math.min(newDistanceTraveled / 2500, 1); // 2500km is total journey
+        const newLatitude = 57.9833 + (progressPercentage * 13.1874); // Lindesnes to North Cape latitude difference
+        const newLongitude = 7.0500 + (progressPercentage * 18.7333); // Lindesnes to North Cape longitude difference
         
         // Check for new landmarks
         const newLandmarks = [...landmarks];

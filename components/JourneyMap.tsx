@@ -5,9 +5,9 @@ import { useJourneyStore } from '../store/journeyStore';
 import { useHealthStore } from '../store/healthStore';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
-import { Svg, Circle, Line, Text as SvgText, G, Path, Rect, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import { MapPin, Trophy, Star, TrendingUp, Navigation, Zap, ZoomIn, ZoomOut, Compass } from 'lucide-react-native';
+import { MapPin, Trophy, Star, TrendingUp, Navigation, Zap, ZoomIn, ZoomOut, Compass, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { GestureHandlerRootView, PinchGestureHandler } from 'react-native-gesture-handler';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,8 +28,9 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
   
   const { stepCount } = useHealthStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date('2024-07-15')); // Start with a date that has data
+  const [timelineData, setTimelineData] = useState([]);
 
   useEffect(() => {
     if (settings.autoSync && stepCount > 0) {
@@ -52,96 +53,149 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
   const nextLandmark = getNextLandmark();
   const unlockedLandmarks = landmarks.filter(l => l.unlocked);
 
-  // Norway map dimensions with realistic proportions
-  const mapWidth = compact ? width * 0.85 : width * 0.9;
-  const mapHeight = compact ? 180 : 280;
+  // Calculate total distance up to selected date
+  const getTotalDistanceUpToDate = (targetDate: Date) => {
+    if (timelineData.length === 0) {
+      return 0;
+    }
+    
+    const dateString = targetDate.toISOString().split('T')[0];
+    console.log('Looking for date:', dateString);
+    console.log('Available dates:', timelineData.map(item => item.date));
+    
+    const dataUpToDate = timelineData.filter(item => item.date <= dateString);
+    const totalDistance = dataUpToDate.reduce((total, item) => total + item.distanceKm, 0);
+    
+    console.log('Date:', dateString, 'Total distance:', totalDistance, 'Items found:', dataUpToDate.length);
+    return totalDistance;
+  };
+
+  const currentTotalDistance = getTotalDistanceUpToDate(selectedDate);
+
+  // Journey path from Lindesnes (southernmost) to Nordkapp (northernmost)
+  const journeyPath = [
+    { latitude: 57.9833, longitude: 7.0500, name: 'Lindesnes', unlocked: true }, // Southernmost point
+    { latitude: 58.1600, longitude: 8.0000, name: 'Kristiansand', unlocked: true },
+    { latitude: 58.9700, longitude: 5.7300, name: 'Stavanger', unlocked: true },
+    { latitude: 59.9100, longitude: 10.7500, name: 'Oslo', unlocked: false },
+    { latitude: 60.3900, longitude: 5.3200, name: 'Bergen', unlocked: false },
+    { latitude: 61.4700, longitude: 5.8600, name: 'Ålesund', unlocked: false },
+    { latitude: 63.4300, longitude: 10.3900, name: 'Trondheim', unlocked: false },
+    { latitude: 65.8400, longitude: 13.2400, name: 'Mo i Rana', unlocked: false },
+    { latitude: 67.2800, longitude: 14.4100, name: 'Bodø', unlocked: false },
+    { latitude: 69.6500, longitude: 18.9600, name: 'Tromsø', unlocked: false },
+    { latitude: 70.9800, longitude: 25.9700, name: 'Nordkapp', unlocked: false }, // Northernmost point
+  ];
+
+  // Calculate current position based on progress
+  const calculateCurrentPosition = () => {
+    const progressPercentage = Math.min(currentTotalDistance / 2500, 1);
+    const currentIndex = Math.floor(progressPercentage * (journeyPath.length - 1));
+    const nextIndex = Math.min(currentIndex + 1, journeyPath.length - 1);
+    
+    const currentPoint = journeyPath[currentIndex];
+    const nextPoint = journeyPath[nextIndex];
+    
+    const segmentProgress = (progressPercentage * (journeyPath.length - 1)) - currentIndex;
+    
+    return {
+      latitude: currentPoint.latitude + (nextPoint.latitude - currentPoint.latitude) * segmentProgress,
+      longitude: currentPoint.longitude + (nextPoint.longitude - currentPoint.longitude) * segmentProgress,
+    };
+  };
+
+  const currentPosition = calculateCurrentPosition();
+
+  // Create route coordinates for the polyline
+  const routeCoordinates = journeyPath.map(point => ({
+    latitude: point.latitude,
+    longitude: point.longitude,
+  }));
+
+  // Get completed route (up to current position)
+  const progressPercentage = Math.min(currentTotalDistance / 2500, 1);
+  const completedPoints = Math.max(0, Math.floor(progressPercentage * journeyPath.length));
+  const completedRoute = routeCoordinates.slice(0, completedPoints);
   
-  // Norway bounding box (realistic coordinates)
-  const norwayBounds = {
-    minLat: 57.5,
-    maxLat: 71.5,
-    minLng: 4.5,
-    maxLng: 31.5
+  // Add current position to the completed route to show the actual path traveled
+  const routeToCurrentPosition = currentTotalDistance > 0 ? [...completedRoute, currentPosition] : [];
+
+  // Calculate map region to focus on current position
+  const getMapRegion = () => {
+    const currentPos = calculateCurrentPosition();
+    return {
+      latitude: currentPos.latitude,
+      longitude: currentPos.longitude,
+      latitudeDelta: 3.0, // More zoomed in
+      longitudeDelta: 4.0,
+    };
   };
 
-  const scaleCoordinate = (value: number, min: number, max: number, size: number) => {
-    return ((value - min) / (max - min)) * size;
-  };
+  const [mapRegion, setMapRegion] = useState(getMapRegion());
 
-  const getAvatarPosition = () => {
-    const x = scaleCoordinate(progress.currentLocation.longitude, norwayBounds.minLng, norwayBounds.maxLng, mapWidth);
-    const y = mapHeight - scaleCoordinate(progress.currentLocation.latitude, norwayBounds.minLat, norwayBounds.maxLat, mapHeight);
-    return { x, y };
-  };
+  // Update map region when current position changes
+  useEffect(() => {
+    setMapRegion(getMapRegion());
+  }, [currentTotalDistance]);
 
-  const avatarPosition = getAvatarPosition();
-
-  // Realistic Norway outline using a real SVG path (now filling almost the entire SVG area)
-  const norwayPath = `
-    M ${mapWidth * 0.65} ${mapHeight * 0.97}
-    L ${mapWidth * 0.75} ${mapHeight * 0.80}
-    L ${mapWidth * 0.78} ${mapHeight * 0.60}
-    L ${mapWidth * 0.80} ${mapHeight * 0.40}
-    L ${mapWidth * 0.82} ${mapHeight * 0.20}
-    L ${mapWidth * 0.80} ${mapHeight * 0.08}
-    L ${mapWidth * 0.70} ${mapHeight * 0.03}
-    L ${mapWidth * 0.60} ${mapHeight * 0.05}
-    L ${mapWidth * 0.50} ${mapHeight * 0.10}
-    L ${mapWidth * 0.40} ${mapHeight * 0.18}
-    L ${mapWidth * 0.30} ${mapHeight * 0.30}
-    L ${mapWidth * 0.25} ${mapHeight * 0.50}
-    L ${mapWidth * 0.28} ${mapHeight * 0.70}
-    L ${mapWidth * 0.35} ${mapHeight * 0.90}
-    L ${mapWidth * 0.45} ${mapHeight * 0.97}
-    L ${mapWidth * 0.55} ${mapHeight * 0.99}
-    L ${mapWidth * 0.65} ${mapHeight * 0.97}
-    Z
-  `;
-
-  // Major fjords and geographical features
-  const fjords = [
-    // Sognefjord (longest fjord)
-    `M ${mapWidth * 0.35} ${mapHeight * 0.6} L ${mapWidth * 0.3} ${mapHeight * 0.55} L ${mapWidth * 0.25} ${mapHeight * 0.5}`,
-    // Hardangerfjord
-    `M ${mapWidth * 0.45} ${mapHeight * 0.55} L ${mapWidth * 0.4} ${mapHeight * 0.5} L ${mapWidth * 0.35} ${mapHeight * 0.45}`,
-    // Trondheimsfjord
-    `M ${mapWidth * 0.55} ${mapHeight * 0.4} L ${mapWidth * 0.5} ${mapHeight * 0.35} L ${mapWidth * 0.45} ${mapHeight * 0.3}`,
-    // Oslofjord
-    `M ${mapWidth * 0.6} ${mapHeight * 0.35} L ${mapWidth * 0.55} ${mapHeight * 0.3} L ${mapWidth * 0.5} ${mapHeight * 0.25}`,
-  ];
-
-  // Mountain ranges
-  const mountains = [
-    // Jotunheimen (highest mountains)
-    `M ${mapWidth * 0.35} ${mapHeight * 0.55} L ${mapWidth * 0.4} ${mapHeight * 0.5} L ${mapWidth * 0.45} ${mapHeight * 0.55}`,
-    // Dovrefjell
-    `M ${mapWidth * 0.55} ${mapHeight * 0.35} L ${mapWidth * 0.6} ${mapHeight * 0.3} L ${mapWidth * 0.65} ${mapHeight * 0.35}`,
-    // Rondane
-    `M ${mapWidth * 0.5} ${mapHeight * 0.4} L ${mapWidth * 0.55} ${mapHeight * 0.35} L ${mapWidth * 0.6} ${mapHeight * 0.4}`,
-  ];
-
-  // Major cities and landmarks
-  const cities = [
-    { name: 'Oslo', x: mapWidth * 0.6, y: mapHeight * 0.3, unlocked: true },
-    { name: 'Bergen', x: mapWidth * 0.35, y: mapHeight * 0.55, unlocked: false },
-    { name: 'Trondheim', x: mapWidth * 0.55, y: mapHeight * 0.35, unlocked: false },
-    { name: 'Stavanger', x: mapWidth * 0.4, y: mapHeight * 0.65, unlocked: false },
-    { name: 'Tromsø', x: mapWidth * 0.75, y: mapHeight * 0.15, unlocked: false },
-    { name: 'Bodø', x: mapWidth * 0.65, y: mapHeight * 0.25, unlocked: false },
-  ];
+  // Debug logging for position calculation
+  useEffect(() => {
+    console.log('Selected date changed:', selectedDate.toISOString().split('T')[0]);
+    console.log('Current total distance:', currentTotalDistance);
+    console.log('Current position:', currentPosition);
+  }, [selectedDate, currentTotalDistance, currentPosition]);
 
   const handleZoomIn = () => {
-    setZoomLevel(Math.min(zoomLevel * 1.2, 3));
+    setMapRegion(prev => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 0.5,
+      longitudeDelta: prev.longitudeDelta * 0.5,
+    }));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel(Math.max(zoomLevel / 1.2, 0.5));
+    setMapRegion(prev => ({
+      ...prev,
+      latitudeDelta: prev.latitudeDelta * 2,
+      longitudeDelta: prev.longitudeDelta * 2,
+    }));
   };
 
   const handleResetZoom = () => {
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
+    setMapRegion(getMapRegion());
   };
+
+  const getZoomPercentage = () => {
+    const baseDelta = 3.0;
+    const currentDelta = mapRegion.latitudeDelta;
+    const zoomLevel = baseDelta / currentDelta;
+    return Math.round(zoomLevel * 100);
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const newDate = new Date(selectedDate);
+    if (direction === 'prev') {
+      newDate.setDate(newDate.getDate() - 1);
+    } else {
+      newDate.setDate(newDate.getDate() + 1);
+    }
+    setSelectedDate(newDate);
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const getDateData = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0];
+    return timelineData.find(item => item.date === dateString);
+  };
+
+  const currentDateData = getDateData(selectedDate);
 
   if (compact) {
     return (
@@ -158,112 +212,65 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
               <Text style={styles.compactTitle}>Norway Journey</Text>
             </View>
             <Text style={styles.compactSubtitle}>
-              {progress.distanceTraveled.toFixed(1)}km traveled
+              {currentTotalDistance.toFixed(1)}km traveled
             </Text>
           </View>
           
           <View style={styles.compactMapContainer}>
-            <Svg width={mapWidth} height={mapHeight} style={styles.map}>
-              <Defs>
-                <SvgLinearGradient id="norwayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#4A90E2" stopOpacity="0.3" />
-                  <Stop offset="50%" stopColor="#2E8B57" stopOpacity="0.4" />
-                  <Stop offset="100%" stopColor="#8B4513" stopOpacity="0.3" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="mountainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-                  <Stop offset="100%" stopColor="#D3D3D3" stopOpacity="0.6" />
-                </SvgLinearGradient>
-                <SvgLinearGradient id="fjordGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#1E90FF" stopOpacity="0.6" />
-                  <Stop offset="100%" stopColor="#000080" stopOpacity="0.4" />
-                </SvgLinearGradient>
-              </Defs>
+            <MapView
+              provider={PROVIDER_DEFAULT}
+              style={{ width: '100%', height: 120, borderRadius: 12 }}
+              region={mapRegion}
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
+              showsUserLocation={false}
+              showsMyLocationButton={false}
+            >
+              {journeyPath.map((point, idx) => (
+                <Marker
+                  key={point.name}
+                  coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+                  title={point.name}
+                  pinColor={point.unlocked ? colors.primary : '#666'}
+                />
+              ))}
               
-              <G>
-                {/* Norway outline with realistic coloring */}
-                <Path
-                  d={norwayPath}
-                  fill="url(#norwayGradient)"
-                  stroke={colors.primary}
+              {/* Completed route - modern thin line */}
+              {routeToCurrentPosition.length > 0 && (
+                <Polyline
+                  coordinates={routeToCurrentPosition}
+                  strokeColor="#FF6B35"
+                  strokeWidth={3}
+                  lineDashPattern={[1, 0]}
+                />
+              )}
+              
+              {/* Remaining route - dashed line */}
+              {currentTotalDistance > 0 && (
+                <Polyline
+                  coordinates={routeCoordinates.slice(completedRoute.length)}
+                  strokeColor="#CCCCCC"
                   strokeWidth={2}
+                  lineDashPattern={[8, 4]}
                 />
-                
-                {/* Mountain ranges */}
-                {mountains.map((mountain, index) => (
-                  <Path
-                    key={`mountain-${index}`}
-                    d={mountain}
-                    fill="url(#mountainGradient)"
-                    stroke="#FFFFFF"
-                    strokeWidth={1}
-                    opacity={0.8}
-                  />
-                ))}
-                
-                {/* Fjords */}
-                {fjords.map((fjord, index) => (
-                  <Path
-                    key={`fjord-${index}`}
-                    d={fjord}
-                    fill="url(#fjordGradient)"
-                    stroke="#1E90FF"
-                    strokeWidth={1}
-                    opacity={0.7}
-                  />
-                ))}
-                
-                {/* Cities */}
-                {cities.map((city, index) => (
-                  <G key={`city-${index}`}>
-                    <Circle
-                      cx={city.x}
-                      cy={city.y}
-                      r={city.unlocked ? 4 : 3}
-                      fill={city.unlocked ? colors.primary : "#666"}
-                      stroke="#FFFFFF"
-                      strokeWidth={1}
-                    />
-                    {city.unlocked && (
-                      <SvgText
-                        x={city.x}
-                        y={city.y - 8}
-                        fontSize={10}
-                        fill={colors.text}
-                        textAnchor="middle"
-                        fontFamily={fonts.regular}
-                      >
-                        {city.name}
-                      </SvgText>
-                    )}
-                  </G>
-                ))}
-                
-                {/* Avatar */}
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={6}
-                  fill={colors.primary}
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                />
-                <Circle
-                  cx={avatarPosition.x}
-                  cy={avatarPosition.y}
-                  r={10}
-                  fill={colors.primary}
-                  opacity={0.3}
-                />
-              </G>
-            </Svg>
+              )}
+              
+              {/* Current position - prominent marker */}
+              <Marker
+                coordinate={currentPosition}
+                title="You"
+                pinColor={colors.secondary}
+              />
+            </MapView>
           </View>
           
           <View style={styles.compactStats}>
             <View style={styles.compactStat}>
               <Trophy size={12} color={colors.primary} />
               <Text style={styles.compactStatText}>
-                {unlockedLandmarks.length}/{landmarks.length} landmarks
+                {journeyPath.filter(p => p.unlocked).length}/{journeyPath.length} landmarks
               </Text>
             </View>
             <View style={styles.compactStat}>
@@ -289,13 +296,20 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
         <View style={styles.controls}>
           <TouchableOpacity 
             style={[styles.controlButton, { backgroundColor: colors.card }]}
+            onPress={() => setShowTimeline(!showTimeline)}
+          >
+            <Calendar size={16} color={colors.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: colors.card }]}
             onPress={handleZoomOut}
           >
             <ZoomOut size={16} color={colors.text} />
           </TouchableOpacity>
           
           <View style={styles.zoomIndicator}>
-            <Text style={styles.zoomText}>{Math.round(zoomLevel * 100)}%</Text>
+            <Text style={styles.zoomText}>{getZoomPercentage()}%</Text>
           </View>
           
           <TouchableOpacity 
@@ -311,127 +325,139 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
           >
             <Compass size={16} color="#FFFFFF" />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.controlButton, { backgroundColor: colors.primary }]}
-            onPress={handleSync}
-            disabled={isLoading}
-          >
-            <Zap size={16} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.mapContainer}>
-        <Svg width={mapWidth} height={mapHeight} style={styles.map}>
-          <Defs>
-            <SvgLinearGradient id="norwayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="#4A90E2" stopOpacity="0.3" />
-              <Stop offset="50%" stopColor="#2E8B57" stopOpacity="0.4" />
-              <Stop offset="100%" stopColor="#8B4513" stopOpacity="0.3" />
-            </SvgLinearGradient>
-            <SvgLinearGradient id="mountainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#D3D3D3" stopOpacity="0.6" />
-            </SvgLinearGradient>
-            <SvgLinearGradient id="fjordGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="#1E90FF" stopOpacity="0.6" />
-              <Stop offset="100%" stopColor="#000080" stopOpacity="0.4" />
-            </SvgLinearGradient>
-          </Defs>
+      {showTimeline && (
+        <View style={styles.timelineContainer}>
+          <View style={styles.timelineHeader}>
+            <TouchableOpacity 
+              style={styles.timelineNavButton}
+              onPress={() => navigateDate('prev')}
+            >
+              <ChevronLeft size={16} color={colors.text} />
+            </TouchableOpacity>
+            
+            <View style={styles.timelineDateInfo}>
+              <Text style={styles.timelineDate}>{formatDate(selectedDate)}</Text>
+              {currentDateData && (
+                <Text style={styles.timelineSteps}>
+                  {currentDateData.steps.toLocaleString()} steps • {currentDateData.distanceKm.toFixed(1)}km
+                </Text>
+              )}
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.timelineNavButton}
+              onPress={() => navigateDate('next')}
+            >
+              <ChevronRight size={16} color={colors.text} />
+            </TouchableOpacity>
+          </View>
           
-          <G
-            transform={`scale(${zoomLevel}) translate(${panOffset.x}, ${panOffset.y})`}
-            transformOrigin={`${mapWidth / 2} ${mapHeight / 2}`}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.timelineScroll}
+            contentContainerStyle={styles.timelineContent}
           >
-            {/* Norway outline with realistic coloring */}
-            <Path
-              d={norwayPath}
-              fill="url(#norwayGradient)"
-              stroke={colors.primary}
-              strokeWidth={2 / zoomLevel}
-            />
-            
-            {/* Mountain ranges */}
-            {mountains.map((mountain, index) => (
-              <Path
-                key={`mountain-${index}`}
-                d={mountain}
-                fill="url(#mountainGradient)"
-                stroke="#FFFFFF"
-                strokeWidth={1 / zoomLevel}
-                opacity={0.8}
-              />
-            ))}
-            
-            {/* Fjords */}
-            {fjords.map((fjord, index) => (
-              <Path
-                key={`fjord-${index}`}
-                d={fjord}
-                fill="url(#fjordGradient)"
-                stroke="#1E90FF"
-                strokeWidth={1 / zoomLevel}
-                opacity={0.7}
-              />
-            ))}
-            
-            {/* Cities */}
-            {cities.map((city, index) => (
-              <G key={`city-${index}`}>
-                <Circle
-                  cx={city.x}
-                  cy={city.y}
-                  r={city.unlocked ? 6 / zoomLevel : 4 / zoomLevel}
-                  fill={city.unlocked ? colors.primary : "#666"}
-                  stroke="#FFFFFF"
-                  strokeWidth={1 / zoomLevel}
-                />
-                {city.unlocked && (
-                  <SvgText
-                    x={city.x}
-                    y={city.y - 10 / zoomLevel}
-                    fontSize={12 / zoomLevel}
-                    fill={colors.text}
-                    textAnchor="middle"
-                    fontFamily={fonts.regular}
+            {timelineData.length === 0 ? (
+              <View style={styles.emptyTimeline}>
+                <Text style={styles.emptyTimelineText}>No journey data yet</Text>
+                <Text style={styles.emptyTimelineSubtext}>Your progress will appear here as you walk</Text>
+              </View>
+            ) : (
+              timelineData.map((item, index) => {
+                const itemDate = new Date(item.date);
+                const isSelected = itemDate.toDateString() === selectedDate.toDateString();
+                const totalDistance = timelineData.slice(0, index + 1).reduce((sum, d) => sum + d.distanceKm, 0);
+                
+                return (
+                  <TouchableOpacity
+                    key={item.date}
+                    style={[
+                      styles.timelineItem,
+                      isSelected && styles.timelineItemSelected
+                    ]}
+                    onPress={() => setSelectedDate(itemDate)}
                   >
-                    {city.name}
-                  </SvgText>
-                )}
-              </G>
-            ))}
-            
-            {/* Avatar */}
-            <Circle
-              cx={avatarPosition.x}
-              cy={avatarPosition.y}
-              r={8 / zoomLevel}
-              fill={colors.primary}
-              stroke="#FFFFFF"
-              strokeWidth={2 / zoomLevel}
+                    <Text style={[styles.timelineItemDate, isSelected && styles.timelineItemDateSelected]}>
+                      {new Date(item.date).getDate()}
+                    </Text>
+                    <Text style={[styles.timelineItemSteps, isSelected && styles.timelineItemStepsSelected]}>
+                      {item.steps.toLocaleString()}
+                    </Text>
+                    <Text style={[styles.timelineItemDistance, isSelected && styles.timelineItemDistanceSelected]}>
+                      {totalDistance.toFixed(1)}km
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.mapContainer}>
+        <MapView
+          provider={PROVIDER_DEFAULT}
+          style={styles.map}
+          region={mapRegion}
+          scrollEnabled={true}
+          zoomEnabled={true}
+          pitchEnabled={false}
+          rotateEnabled={false}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+        >
+          {journeyPath.map((point, idx) => (
+            <Marker
+              key={point.name}
+              coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+              title={point.name}
+              pinColor={point.unlocked ? colors.primary : '#666'}
             />
-            <Circle
-              cx={avatarPosition.x}
-              cy={avatarPosition.y}
-              r={15 / zoomLevel}
-              fill={colors.primary}
-              opacity={0.3}
+          ))}
+          
+          {/* Completed route - modern thin line */}
+          {routeToCurrentPosition.length > 0 && (
+            <Polyline
+              coordinates={routeToCurrentPosition}
+              strokeColor="#FF6B35"
+              strokeWidth={4}
+              lineDashPattern={[1, 0]}
             />
-          </G>
-        </Svg>
+          )}
+          
+          {/* Remaining route - dashed line */}
+          {currentTotalDistance > 0 && (
+            <Polyline
+              coordinates={routeCoordinates.slice(completedRoute.length)}
+              strokeColor="#CCCCCC"
+              strokeWidth={2}
+              lineDashPattern={[8, 4]}
+            />
+          )}
+          
+          {/* Current position - very prominent marker */}
+          <Marker
+            coordinate={currentPosition}
+            title="You"
+            pinColor={colors.secondary}
+          />
+        </MapView>
       </View>
 
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <Navigation size={20} color={colors.primary} />
-          <Text style={styles.statValue}>{progress.distanceTraveled.toFixed(1)}km</Text>
+          <Text style={styles.statValue}>{currentTotalDistance.toFixed(1)}km</Text>
           <Text style={styles.statLabel}>Distance Traveled</Text>
         </View>
         
         <View style={styles.statCard}>
           <MapPin size={20} color={colors.primary} />
-          <Text style={styles.statValue}>{unlockedLandmarks.length}/{landmarks.length}</Text>
+          <Text style={styles.statValue}>{journeyPath.filter(p => p.unlocked).length}/{journeyPath.length}</Text>
           <Text style={styles.statLabel}>Landmarks Visited</Text>
         </View>
         
@@ -450,7 +476,13 @@ export const JourneyMap: React.FC<JourneyMapProps> = ({ compact = false }) => {
           </View>
           <Text style={styles.nextLandmarkName}>{nextLandmark.name}</Text>
           <Text style={styles.nextLandmarkDistance}>
-            {((nextLandmark.distance - progress.distanceTraveled) * 1000).toFixed(0)}m to go
+            {(() => {
+              const distanceToGo = nextLandmark.distance - currentTotalDistance;
+              if (isNaN(distanceToGo) || distanceToGo < 0) {
+                return "0m to go";
+              }
+              return `${(distanceToGo * 1000).toFixed(0)}m to go`;
+            })()}
           </Text>
         </View>
       )}
@@ -467,7 +499,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
@@ -484,20 +516,20 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   controlButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   zoomIndicator: {
     backgroundColor: colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -506,11 +538,104 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.text,
   },
+  timelineContainer: {
+    backgroundColor: colors.card,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  timelineNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timelineDateInfo: {
+    alignItems: 'center',
+  },
+  timelineDate: {
+    fontSize: 16,
+    fontFamily: fonts.bold,
+    color: colors.text,
+  },
+  timelineSteps: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#666666',
+  },
+  timelineScroll: {
+    paddingHorizontal: 20,
+  },
+  timelineContent: {
+    gap: 10,
+  },
+  timelineItem: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  timelineItemSelected: {
+    backgroundColor: colors.primary,
+  },
+  timelineItemDate: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.text,
+  },
+  timelineItemDateSelected: {
+    color: '#FFFFFF',
+  },
+  timelineItemSteps: {
+    fontSize: 10,
+    fontFamily: fonts.regular,
+    color: '#666666',
+  },
+  timelineItemStepsSelected: {
+    color: '#FFFFFF',
+  },
+  timelineItemDistance: {
+    fontSize: 10,
+    fontFamily: fonts.medium,
+    color: colors.primary,
+  },
+  timelineItemDistanceSelected: {
+    color: '#FFFFFF',
+  },
+  emptyTimeline: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+  },
+  emptyTimelineText: {
+    fontSize: 16,
+    fontFamily: fonts.medium,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  emptyTimelineSubtext: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: '#666666',
+  },
   mapContainer: {
     alignItems: 'center',
     paddingVertical: 20,
   },
   map: {
+    width: '100%',
+    height: 400,
     borderRadius: 12,
   },
   statsContainer: {

@@ -24,8 +24,12 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
     protein: number;
     carbs: number;
     fat: number;
+    confidence: string;
+    portionSize: string;
+    notes: string;
   } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [photoQuality, setPhotoQuality] = useState<'good' | 'fair' | 'poor'>('good');
   
   const requestPermissions = async () => {
     if (Platform.OS !== "web") {
@@ -139,16 +143,55 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
       // Convert the image to base64
       const base64Image = await convertImageToBase64(photo);
       
-      // Create a prompt for the AI that emphasizes accurate food identification
+      // Create a comprehensive prompt for accurate food identification
       const messages = [
         {
           role: "system",
-          content: "You are a nutrition expert specializing in food identification and nutritional analysis. Your task is to accurately identify foods from images and provide precise nutritional information. Analyze the image carefully, considering visual cues like texture, color, and presentation. If you recognize a specific dish (like lasagna, pizza, salad, etc.), name it specifically rather than using generic terms. Provide the food name, calories, protein (g), carbs (g), and fat (g) for a standard serving. Format your response as a JSON object with these fields: name, calories, protein, carbs, fat. Only respond with the JSON object, no additional text."
+          content: `You are a professional nutritionist and food identification expert with 20+ years of experience. Your task is to accurately identify foods from images and provide precise nutritional information.
+
+ANALYSIS GUIDELINES:
+1. **Food Identification**: Look for specific visual cues:
+   - Color, texture, and shape
+   - Cooking methods (grilled, fried, baked, raw)
+   - Portion size and presentation
+   - Ingredients visible (vegetables, meats, grains, sauces)
+   - Cultural context and dish type
+
+2. **Portion Estimation**: 
+   - Estimate realistic serving sizes
+   - Consider typical restaurant/home portions
+   - Account for visible ingredients and preparation methods
+
+3. **Nutritional Accuracy**:
+   - Base estimates on standard recipes and USDA database
+   - Consider cooking methods (fried vs grilled affects calories)
+   - Account for visible sauces, dressings, and toppings
+   - Provide realistic ranges for common foods
+
+4. **Confidence Levels**:
+   - High confidence: Clear, well-lit photos of recognizable dishes
+   - Medium confidence: Partially visible or complex dishes
+   - Low confidence: Blurry, dark, or unclear images
+
+RESPONSE FORMAT:
+Return ONLY a JSON object with these fields:
+{
+  "name": "Specific food name (e.g., 'Grilled Chicken Caesar Salad')",
+  "calories": number,
+  "protein": number,
+  "carbs": number,
+  "fat": number,
+  "confidence": "high|medium|low",
+  "portion_size": "estimated serving description",
+  "notes": "brief explanation of estimation method"
+}
+
+IMPORTANT: Only respond with the JSON object, no additional text.`
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "What specific food is shown in this image and what are its nutritional values?" },
+            { type: "text", text: "Analyze this food image and provide accurate nutritional information. Consider the visual details, portion size, and preparation method." },
             { type: "image", image: base64Image }
           ]
         }
@@ -199,7 +242,10 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
           calories: nutritionData.calories,
           protein: nutritionData.protein,
           carbs: nutritionData.carbs,
-          fat: nutritionData.fat
+          fat: nutritionData.fat,
+          confidence: nutritionData.confidence || "medium",
+          portionSize: nutritionData.portion_size || "Standard serving",
+          notes: nutritionData.notes || ""
         });
       } catch (parseError) {
         console.error("Error parsing AI response:", parseError, data.completion);
@@ -210,7 +256,10 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
           calories: 300,
           protein: 10,
           carbs: 30,
-          fat: 15
+          fat: 15,
+          confidence: "low",
+          portionSize: "Estimated serving",
+          notes: "Unable to accurately identify this food. Please verify the nutrition information."
         });
         
         setAnalysisError("We couldn't accurately analyze this food. Please verify the nutrition information.");
@@ -224,7 +273,10 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
         calories: 300,
         protein: 10,
         carbs: 30,
-        fat: 15
+        fat: 15,
+        confidence: "low",
+        portionSize: "Estimated serving",
+        notes: "Unable to analyze this food. Please verify the nutrition information."
       });
       
       setAnalysisError("We couldn't analyze this food. Please verify the nutrition information.");
@@ -269,6 +321,15 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
           <View style={styles.cameraPlaceholder}>
             <Camera size={48} color={colors.textLight} />
             <Text style={styles.cameraText}>Take a photo of your food</Text>
+            
+            {/* Photo quality tips */}
+            <View style={styles.qualityTipsContainer}>
+              <Text style={styles.qualityTipsTitle}>📸 Tips for Better Analysis:</Text>
+              <Text style={styles.qualityTipsText}>• Good lighting (natural light works best)</Text>
+              <Text style={styles.qualityTipsText}>• Clear, focused photo</Text>
+              <Text style={styles.qualityTipsText}>• Include the entire dish</Text>
+              <Text style={styles.qualityTipsText}>• Avoid shadows and glare</Text>
+            </View>
             <View style={styles.photoButtonsContainer}>
               <Button 
                 title="Take Photo" 
@@ -305,6 +366,22 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
             <View style={styles.resultContainer}>
               <Text style={styles.foodName}>{analysisResult.name}</Text>
               
+              {/* Confidence indicator */}
+              <View style={styles.confidenceContainer}>
+                <View style={[
+                  styles.confidenceBadge,
+                  { backgroundColor: analysisResult.confidence === 'high' ? '#4CAF50' : 
+                                   analysisResult.confidence === 'medium' ? '#FF9800' : '#F44336' }
+                ]}>
+                  <Text style={styles.confidenceText}>
+                    {analysisResult.confidence.toUpperCase()} CONFIDENCE
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Portion size info */}
+              <Text style={styles.portionSizeText}>{analysisResult.portionSize}</Text>
+              
               {analysisError && (
                 <Text style={styles.errorText}>{analysisError}</Text>
               )}
@@ -330,6 +407,14 @@ export default function FoodPhotoAnalyzer({ onPhotoTaken, onCancel }: FoodPhotoA
                   <Text style={styles.nutritionLabel}>Fat</Text>
                 </View>
               </View>
+              
+              {/* Analysis notes */}
+              {analysisResult.notes && (
+                <View style={styles.notesContainer}>
+                  <Text style={styles.notesTitle}>Analysis Notes:</Text>
+                  <Text style={styles.notesText}>{analysisResult.notes}</Text>
+                </View>
+              )}
               
               <View style={styles.buttonContainer}>
                 <Button 
@@ -544,5 +629,62 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     width: '80%',
+  },
+  confidenceContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  confidenceBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  confidenceText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "white",
+  },
+  portionSizeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 16,
+    fontStyle: "italic",
+  },
+  notesContainer: {
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  notesTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  qualityTipsContainer: {
+    backgroundColor: colors.backgroundLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    width: "100%",
+  },
+  qualityTipsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  qualityTipsText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: 2,
   },
 });

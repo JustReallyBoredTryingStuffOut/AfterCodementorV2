@@ -49,7 +49,7 @@ import MacroProgress from "@/components/MacroProgress";
 import StepCounter from "@/components/StepCounter";
 import WeightTracker from "@/components/WeightTracker";
 import CaloriesTracker from "@/components/CaloriesTracker";
-import { JourneyMap } from "../../components/JourneyMap";
+
 import Button from "@/components/Button";
 import GoalPrompt from "@/components/GoalPrompt";
 import MoodSelector from "@/components/MoodSelector";
@@ -784,7 +784,11 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       ) : (
-        <MacroProgress current={todayMacros} goals={macroGoals} />
+        <View style={[styles.emptyStateCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+            No active workout
+          </Text>
+        </View>
       )}
       
       {/* Gamification Section - Only show if enabled */}
@@ -837,7 +841,6 @@ export default function HomeScreen() {
           />
         </View>
         <CaloriesTracker compact />
-        <JourneyMap compact />
       </View>
       
       {/* Mood-based Advice Banner */}
@@ -2139,5 +2142,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyStateCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

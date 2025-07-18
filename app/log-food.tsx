@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Image, Modal } from "react-native";
 import { useRouter, Stack } from "expo-router";
-import { Plus, Minus, Clock, Coffee, UtensilsCrossed, Soup, ArrowLeft } from "lucide-react-native";
+import { Plus, Minus, Clock, Coffee, UtensilsCrossed, Soup, ArrowLeft, Camera } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useMacroStore } from "@/store/macroStore";
 import { useGamificationStore } from "@/store/gamificationStore";
 import { MacroLog, FoodItem } from "@/types";
 import Button from "@/components/Button";
 import NoteInput from "@/components/NoteInput";
-import { Picker } from "@react-native-picker/picker";
+import CustomDropdown from "@/components/CustomDropdown";
 import FoodCategorySelector from "@/components/FoodCategorySelector";
+import NutritionLabelScanner from "@/components/NutritionLabelScanner";
 import { foodCategories } from "@/mocks/foodCategories";
 
 export default function LogFoodScreen() {
@@ -25,6 +26,15 @@ export default function LogFoodScreen() {
   const [mealType, setMealType] = useState<"breakfast" | "lunch" | "dinner" | "snack">("breakfast");
   const [selectedFoodItems, setSelectedFoodItems] = useState<FoodItem[]>([]);
   const [quantity, setQuantity] = useState("1");
+  const [showNutritionScanner, setShowNutritionScanner] = useState(false);
+  
+  // Meal type options for dropdown
+  const mealTypeOptions = [
+    { label: "Breakfast", value: "breakfast" },
+    { label: "Lunch", value: "lunch" },
+    { label: "Dinner", value: "dinner" },
+    { label: "Snack", value: "snack" }
+  ];
   
   // Get current time in HH:MM format
   const now = new Date();
@@ -234,6 +244,31 @@ export default function LogFoodScreen() {
     setFat("0");
   };
   
+  const handleNutritionScanned = (nutrition: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    quantity: string;
+    servingSize: string;
+  }) => {
+    // Clear any existing food items since we're using scanned nutrition
+    setSelectedFoodItems([]);
+    
+    // Set the nutrition values
+    setCalories(nutrition.calories.toString());
+    setProtein(nutrition.protein.toString());
+    setCarbs(nutrition.carbs.toString());
+    setFat(nutrition.fat.toString());
+    
+    // Add notes about the scanned item
+    const notesText = `Scanned: ${nutrition.name}${nutrition.quantity !== "1" ? ` (${nutrition.quantity} servings)` : ""}${nutrition.servingSize ? ` - ${nutrition.servingSize}` : ""}`;
+    setNotes(notesText);
+    
+    setShowNutritionScanner(false);
+  };
+  
   const areManualInputsEnabled = selectedFoodItems.length === 0;
   
   // Calculate remaining macros for the day (only if goals are set)
@@ -273,7 +308,8 @@ export default function LogFoodScreen() {
   const fatMessage = hasValidMacroGoals ? getProgressMessage(todayMacros.fat + parseInt(fat || "0"), macroGoals?.fat || 0, "fat") : "";
   
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
       <Stack.Screen 
         options={{
           title: "Log Food",
@@ -311,21 +347,15 @@ export default function LogFoodScreen() {
         <View style={styles.mealInfoContainer}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Meal Type</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={mealType}
-                onValueChange={(itemValue) => {
-                  setMealType(itemValue);
-                  setSelectedFoodItems([]);
-                }}
-                style={styles.picker}
-              >
-                <Picker.Item label="Breakfast" value="breakfast" />
-                <Picker.Item label="Lunch" value="lunch" />
-                <Picker.Item label="Dinner" value="dinner" />
-                <Picker.Item label="Snack" value="snack" />
-              </Picker>
-            </View>
+            <CustomDropdown
+              value={mealType}
+              onValueChange={(value) => {
+                setMealType(value as "breakfast" | "lunch" | "dinner" | "snack");
+                setSelectedFoodItems([]);
+              }}
+              options={mealTypeOptions}
+              placeholder="Select meal type"
+            />
           </View>
           
           <View style={styles.inputGroup}>
@@ -421,6 +451,20 @@ export default function LogFoodScreen() {
             ))}
           </View>
         )}
+        
+        {/* Nutrition Scanner Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Scan Nutrition Label</Text>
+          <Text style={styles.sectionDescription}>
+            Take a photo of a nutrition label to automatically extract nutrition information.
+          </Text>
+          <Button
+            title="Scan Nutrition Label"
+            onPress={() => setShowNutritionScanner(true)}
+            icon={<Camera size={20} color={colors.white} />}
+            style={styles.scannerButton}
+          />
+        </View>
         
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Manual Nutrition Entry</Text>
@@ -719,7 +763,20 @@ export default function LogFoodScreen() {
           style={styles.cancelButton}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+      
+      {/* Nutrition Scanner Modal */}
+      <Modal
+        visible={showNutritionScanner}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <NutritionLabelScanner
+          onNutritionScanned={handleNutritionScanned}
+          onCancel={() => setShowNutritionScanner(false)}
+        />
+      </Modal>
+    </View>
   );
 }
 
@@ -781,16 +838,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  picker: {
-    height: 50,
-    width: "100%",
-  },
+
   timeInputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1095,5 +1143,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: "500",
     fontSize: 14,
+  },
+  scannerButton: {
+    marginTop: 8,
   },
 });

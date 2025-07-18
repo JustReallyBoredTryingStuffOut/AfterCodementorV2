@@ -4,6 +4,7 @@ import { Flame, RefreshCw, Zap, Watch, AlertTriangle } from "lucide-react-native
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import HealthKitService from "@/src/services/HealthKitService";
+import { HEALTH_DATA_TYPES } from "@/types/health";
 
 type CaloriesTrackerProps = {
   compact?: boolean;
@@ -31,6 +32,9 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
     setError(null);
     
     try {
+      // Initialize HealthKit service first
+      await HealthKitService.initialize();
+      
       // Check if HealthKit is available
       const isAvailable = await HealthKitService.isHealthDataAvailable();
       
@@ -40,11 +44,11 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
         return;
       }
       
-      // Request authorization for active calories
-      const authResult = await HealthKitService.requestAuthorization(['calories']);
+      // Request authorization for active energy burned (calories)
+      const authResult = await HealthKitService.requestAuthorization([HEALTH_DATA_TYPES.ACTIVE_ENERGY_BURNED]);
       
       if (!authResult) {
-        setError("Calories access denied");
+        setError("Calories access denied. Please enable Health permissions in Settings.");
         setDataSource("unknown");
         return;
       }
@@ -52,7 +56,7 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
       // Get today's active calories
       const calories = await HealthKitService.getTodayActiveCalories();
       
-      if (calories > 0) {
+      if (calories >= 0) {
         setCurrentCalories(calories);
         setDataSource("healthKit");
         setError(null);
@@ -62,9 +66,9 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
         setError("No calories data found for today");
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error syncing calories from HealthKit:", error);
-      setError("Failed to sync calories data");
+      setError(`Failed to sync calories: ${error.message || 'Unknown error'}`);
       setDataSource("unknown");
     } finally {
       setIsSyncing(false);
@@ -368,4 +372,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-}); 
+});

@@ -150,16 +150,19 @@ export default function useStepCounter() {
             // HealthKit not available - show error
             setError("HealthKit is not available on this device");
             setErrorType(ERROR_TYPES.DEVICE_NOT_SUPPORTED);
+            setCurrentStepCount(0); // Reset to 0 when HealthKit is not available
           }
         } catch (error: any) {
           console.error("Error initializing HealthKit:", error);
           setError(`Error initializing HealthKit: ${error.message}`);
           setErrorType(ERROR_TYPES.HEALTHKIT_ERROR);
+          setCurrentStepCount(0); // Reset to 0 when HealthKit initialization fails
         }
       } else {
         // Not on iOS - HealthKit not available
         setError("HealthKit is only available on iOS devices");
         setErrorType(ERROR_TYPES.DEVICE_NOT_SUPPORTED);
+        setCurrentStepCount(0); // Reset to 0 when not on iOS
       }
     };
     

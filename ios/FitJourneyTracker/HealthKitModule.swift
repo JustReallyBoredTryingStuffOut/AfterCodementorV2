@@ -19,7 +19,7 @@ class HealthKitModule: RCTEventEmitter {
     func isHealthDataAvailable(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         resolve(HKHealthStore.isHealthDataAvailable())
     }
-
+    
     @objc
     func requestAuthorization(_ dataTypes: NSArray?, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         var typesToRead: Set<HKObjectType> = []
