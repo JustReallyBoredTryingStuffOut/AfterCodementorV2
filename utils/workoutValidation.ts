@@ -139,3 +139,32 @@ export function findAndCreateWorkoutExercise(
   
   return createWorkoutExercise(exercise, sets, reps, restTime, duration);
 } 
+
+/**
+ * Filter workouts based on user profile (fitness level, goal, activity level)
+ * @param workouts - Array of workouts
+ * @param userProfile - UserProfile object
+ * @returns Filtered workouts array
+ */
+export function filterWorkoutsForUser({
+  workouts,
+  userProfile,
+}: {
+  workouts: any[];
+  userProfile: {
+    fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
+    fitnessGoal: 'lose' | 'maintain' | 'gain';
+    activityLevel: string;
+    weight: number;
+  };
+}) {
+  return workouts.filter(w => {
+    // Filter by fitness level
+    if (w.difficulty && w.difficulty !== userProfile.fitnessLevel) return false;
+    // Filter by goal (if workout has goal tags)
+    if (w.goal && w.goal !== userProfile.fitnessGoal) return false;
+    // Optionally, filter by activity level (e.g., duration)
+    if (w.minActivityLevel && w.minActivityLevel !== userProfile.activityLevel) return false;
+    return true;
+  });
+} 

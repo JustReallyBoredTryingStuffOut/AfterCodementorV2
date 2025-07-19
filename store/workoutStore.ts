@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Exercise, Workout, WorkoutLog, ExerciseLog, WorkoutSet, ScheduledWorkout, WorkoutRating, WorkoutMedia, TimerSettings, BodyRegion, MuscleGroup, EquipmentType, PersonalRecord } from "@/types";
 import { exercises } from "@/mocks/exercises";
 import { workouts } from "@/mocks/workouts";
-import { validateAllWorkouts, validateWorkout } from "@/utils/workoutValidation";
+import { validateAllWorkouts, validateWorkout, filterWorkoutsForUser } from "@/utils/workoutValidation";
 import { useMacroStore } from "./macroStore";
 import { useGamificationStore } from "./gamificationStore";
 
@@ -780,34 +780,24 @@ export const useWorkoutStore = create<WorkoutState>()(
           return get().getMoodBasedWorkouts("", moodPreference, count);
         }
         
+        // Use the new smart filtering utility for better personalization
+        const userProfileForFiltering = {
+          fitnessLevel: userProfile.fitnessLevel || 'beginner',
+          fitnessGoal: userProfile.fitnessGoal || 'maintain',
+          activityLevel: userProfile.activityLevel || 'moderate',
+          weight: userProfile.weight || 70,
+        };
+        
+        // Filter workouts using the new utility
+        let filteredWorkouts = filterWorkoutsForUser({
+          workouts,
+          userProfile: userProfileForFiltering,
+        });
+        
         if (!workoutRecommendationsEnabled || workoutLogs.length === 0) {
           // If recommendations are disabled or no workout history,
-          // return random workouts filtered by user's fitness level
-          const userFitnessLevel = userProfile.fitnessLevel || 'beginner';
-          
-          // Filter workouts by user's fitness level
-          const levelAppropriateWorkouts = workouts.filter(workout => {
-            // If workout has no difficulty specified, include it for all levels
-            if (!workout.difficulty) return true;
-            
-            // For beginners, only show beginner workouts
-            if (userFitnessLevel === 'beginner') {
-              return workout.difficulty === 'beginner';
-            }
-            
-            // For intermediate, show beginner and intermediate workouts
-            if (userFitnessLevel === 'intermediate') {
-              return workout.difficulty === 'beginner' || workout.difficulty === 'intermediate';
-            }
-            
-            // For advanced, show all workouts
-            return true;
-          });
-          
-          // If no workouts match the user's level, fall back to all workouts
-          const workoutsToUse = levelAppropriateWorkouts.length > 0 ? levelAppropriateWorkouts : workouts;
-          
-          return [...workoutsToUse]
+          // return filtered workouts based on user's profile
+          return [...filteredWorkouts]
             .sort(() => 0.5 - Math.random())
             .slice(0, count);
         }
@@ -819,32 +809,8 @@ export const useWorkoutStore = create<WorkoutState>()(
           .slice(0, 5);
         
         if (recentWorkouts.length === 0) {
-          // If no completed workouts with ratings, return random workouts filtered by user's fitness level
-          const userFitnessLevel = userProfile.fitnessLevel || 'beginner';
-          
-          // Filter workouts by user's fitness level
-          const levelAppropriateWorkouts = workouts.filter(workout => {
-            // If workout has no difficulty specified, include it for all levels
-            if (!workout.difficulty) return true;
-            
-            // For beginners, only show beginner workouts
-            if (userFitnessLevel === 'beginner') {
-              return workout.difficulty === 'beginner';
-            }
-            
-            // For intermediate, show beginner and intermediate workouts
-            if (userFitnessLevel === 'intermediate') {
-              return workout.difficulty === 'beginner' || workout.difficulty === 'intermediate';
-            }
-            
-            // For advanced, show all workouts
-            return true;
-          });
-          
-          // If no workouts match the user's level, fall back to all workouts
-          const workoutsToUse = levelAppropriateWorkouts.length > 0 ? levelAppropriateWorkouts : workouts;
-          
-          return [...workoutsToUse]
+          // If no completed workouts with ratings, return filtered workouts
+          return [...filteredWorkouts]
             .sort(() => 0.5 - Math.random())
             .slice(0, count);
         }
@@ -853,77 +819,61 @@ export const useWorkoutStore = create<WorkoutState>()(
         const workoutRatings: Record<string, { count: number; totalRating: number }> = {};
         
         recentWorkouts.forEach(log => {
-          if (!log.rating) return;
-          
           if (!workoutRatings[log.workoutId]) {
             workoutRatings[log.workoutId] = { count: 0, totalRating: 0 };
           }
-          
-          workoutRatings[log.workoutId].count += 1;
-          workoutRatings[log.workoutId].totalRating += log.rating.rating;
+          workoutRatings[log.workoutId].count++;
+          workoutRatings[log.workoutId].totalRating += log.rating || 0;
         });
         
-        // Get workout categories the user enjoys (based on high ratings)
-        const favoriteCategories = new Set<string>();
+        // Calculate average ratings
+        const averageRatings: Record<string, number> = {};
+        Object.keys(workoutRatings).forEach(workoutId => {
+          const { count, totalRating } = workoutRatings[workoutId];
+          averageRatings[workoutId] = totalRating / count;
+        });
         
-        Object.entries(workoutRatings).forEach(([workoutId, ratingData]) => {
-          const averageRating = ratingData.totalRating / ratingData.count;
-          
-          if (averageRating >= 4) {
-            const workout = workouts.find(w => w.id === workoutId);
-            if (workout) {
-              favoriteCategories.add(workout.category);
+        // Get user's favorite workout categories based on ratings
+        const categoryRatings: Record<string, number> = {};
+        Object.keys(averageRatings).forEach(workoutId => {
+          const workout = workouts.find(w => w.id === workoutId);
+          if (workout) {
+            if (!categoryRatings[workout.category]) {
+              categoryRatings[workout.category] = 0;
             }
+            categoryRatings[workout.category] += averageRatings[workoutId];
           }
         });
         
-        // Filter workouts by favorite categories, exclude recently done workouts, and consider user's fitness level
-        const recentWorkoutIds = new Set(recentWorkouts.map(log => log.workoutId));
-        const userFitnessLevel = userProfile.fitnessLevel || 'beginner';
+        // Get top 3 favorite categories
+        const favoriteCategories = Object.keys(categoryRatings)
+          .sort((a, b) => categoryRatings[b] - categoryRatings[a])
+          .slice(0, 3);
         
-        let recommendedWorkouts = workouts.filter(workout => {
+        // Get recently done workout IDs to avoid repetition
+        const recentWorkoutIds = new Set(
+          recentWorkouts.map(log => log.workoutId)
+        );
+        
+        // Filter and prioritize workouts
+        let recommendedWorkouts = filteredWorkouts.filter(workout => {
           // Skip recently done workouts
           if (recentWorkoutIds.has(workout.id)) return false;
           
           // Check if it's in a favorite category
-          const isInFavoriteCategory = favoriteCategories.has(workout.category);
+          const isInFavoriteCategory = favoriteCategories.includes(workout.category);
           
-          // Check if it's appropriate for the user's fitness level
-          let isAppropriateLevel = true;
-          if (workout.difficulty) {
-            if (userFitnessLevel === 'beginner') {
-              isAppropriateLevel = workout.difficulty === 'beginner';
-            } else if (userFitnessLevel === 'intermediate') {
-              isAppropriateLevel = workout.difficulty === 'beginner' || workout.difficulty === 'intermediate';
-            }
-            // For advanced users, all levels are appropriate
-          }
-          
-          // Consider user's fitness goal
-          const isAlignedWithGoal = workout.goalAlignment ? 
-            workout.goalAlignment.includes(userProfile.fitnessGoal || 'maintain') : 
-            true;
-          
-          return isInFavoriteCategory && isAppropriateLevel && isAlignedWithGoal;
+          // Prioritize workouts that match user's preferences
+          return isInFavoriteCategory;
         });
         
-        // If we don't have enough recommendations, add some random workouts that match the user's level
+        // If we don't have enough recommendations, add some filtered workouts
         if (recommendedWorkouts.length < count) {
           const remainingCount = count - recommendedWorkouts.length;
-          const otherWorkouts = workouts
+          const otherWorkouts = filteredWorkouts
             .filter(w => {
               // Skip recently done workouts and already recommended ones
               if (recentWorkoutIds.has(w.id) || recommendedWorkouts.includes(w)) return false;
-              
-              // Check if it's appropriate for the user's fitness level
-              if (w.difficulty) {
-                if (userFitnessLevel === 'beginner') {
-                  return w.difficulty === 'beginner';
-                } else if (userFitnessLevel === 'intermediate') {
-                  return w.difficulty === 'beginner' || w.difficulty === 'intermediate';
-                }
-              }
-              
               return true;
             })
             .sort(() => 0.5 - Math.random())
@@ -932,21 +882,9 @@ export const useWorkoutStore = create<WorkoutState>()(
           recommendedWorkouts = [...recommendedWorkouts, ...otherWorkouts];
         }
         
-        // If we still don't have enough, just return random workouts
+        // If we still don't have enough, just return filtered workouts
         if (recommendedWorkouts.length < count) {
-          const levelAppropriateWorkouts = workouts.filter(workout => {
-            if (!workout.difficulty) return true;
-            
-            if (userFitnessLevel === 'beginner') {
-              return workout.difficulty === 'beginner';
-            } else if (userFitnessLevel === 'intermediate') {
-              return workout.difficulty === 'beginner' || workout.difficulty === 'intermediate';
-            }
-            
-            return true;
-          });
-          
-          return [...levelAppropriateWorkouts]
+          return [...filteredWorkouts]
             .sort(() => 0.5 - Math.random())
             .slice(0, count);
         }
@@ -1082,38 +1020,22 @@ export const useWorkoutStore = create<WorkoutState>()(
       getMoodBasedWorkouts: (mood, preference, count = 3) => {
         const { workouts } = get();
         const { userProfile } = useMacroStore.getState();
-        const userFitnessLevel = userProfile.fitnessLevel || 'beginner';
-        const userGoal = userProfile.fitnessGoal || 'maintain';
         
-        // Create a copy of workouts to filter and sort
-        let filteredWorkouts = [...workouts];
+        // Use the new smart filtering utility for better personalization
+        const userProfileForFiltering = {
+          fitnessLevel: userProfile.fitnessLevel || 'beginner',
+          fitnessGoal: userProfile.fitnessGoal || 'maintain',
+          activityLevel: userProfile.activityLevel || 'moderate',
+          weight: userProfile.weight || 70,
+        };
         
-        // First, filter by user's fitness level
-        filteredWorkouts = filteredWorkouts.filter(workout => {
-          if (!workout.difficulty) return true;
-          
-          if (userFitnessLevel === 'beginner') {
-            return workout.difficulty === 'beginner';
-          } else if (userFitnessLevel === 'intermediate') {
-            return workout.difficulty === 'beginner' || workout.difficulty === 'intermediate';
-          }
-          
-          return true; // Advanced users can do any workout
+        // Filter workouts using the new utility first
+        let filteredWorkouts = filterWorkoutsForUser({
+          workouts,
+          userProfile: userProfileForFiltering,
         });
         
-        // Then, filter by user's fitness goal if available
-        if (userGoal && userGoal !== 'maintain') {
-          const goalAlignedWorkouts = filteredWorkouts.filter(w => 
-            w.goalAlignment && w.goalAlignment.includes(userGoal)
-          );
-          
-          // Only use goal-aligned workouts if we have enough
-          if (goalAlignedWorkouts.length >= count) {
-            filteredWorkouts = goalAlignedWorkouts;
-          }
-        }
-        
-        // Finally, filter workouts based on mood preference
+        // Then apply mood-based filtering
         switch (preference) {
           case "shorter":
             // For tired or not great users who want shorter workouts
@@ -1154,86 +1076,43 @@ export const useWorkoutStore = create<WorkoutState>()(
               .slice(0, count);
             break;
             
-          case "energizing":
-            // For users who need an energy boost
+          case "energetic":
+            // For users feeling energetic who want challenging workouts
             filteredWorkouts = filteredWorkouts
               .filter(w => 
-                w.intensity === "medium" && 
-                (w.category === "cardio" || w.category === "hiit")
-              );
-            break;
-            
-          case "challenging":
-            // For users feeling great who want a challenge
-            filteredWorkouts = filteredWorkouts
-              .filter(w => w.intensity === "high")
+                w.intensity === "high" || 
+                w.category === "hiit" || 
+                w.category === "strength"
+              )
               .sort((a, b) => {
+                // Sort by duration (longer first for energetic users)
                 const durationA = a.estimatedDuration || a.duration || 60;
                 const durationB = b.estimatedDuration || b.duration || 60;
-                return durationB - durationA; // Longer workouts first for challenging
+                return durationB - durationA;
               });
             break;
             
-          case "normal":
           default:
-            // No special filtering for normal preference
+            // For general mood, just use the filtered workouts
             break;
         }
         
-        // If we don't have enough workouts after filtering, add some random ones
+        // If we don't have enough workouts after mood filtering, add some from the original filtered list
         if (filteredWorkouts.length < count) {
-          // If we're looking for shorter workouts but don't have enough, 
-          // try to find more short workouts before falling back to any workout
-          if (preference === "shorter") {
-            const additionalShortWorkouts = workouts
-              .filter(w => {
-                // Skip already included workouts
-                if (filteredWorkouts.includes(w)) return false;
-                
-                // Get the workout duration
-                const workoutDuration = w.estimatedDuration || w.duration || 60;
-                
-                // Include workouts that are 30 minutes or less (slightly relaxed criteria)
-                return workoutDuration <= 30 && (
-                  !w.difficulty || 
-                  userFitnessLevel === 'advanced' ||
-                  (userFitnessLevel === 'intermediate' && (w.difficulty === 'beginner' || w.difficulty === 'intermediate')) ||
-                  (userFitnessLevel === 'beginner' && w.difficulty === 'beginner')
-                );
-              })
-              .sort((a, b) => {
-                const durationA = a.estimatedDuration || a.duration || 60;
-                const durationB = b.estimatedDuration || b.duration || 60;
-                return durationA - durationB; // Sort by duration (shortest first)
-              })
-              .slice(0, count - filteredWorkouts.length);
-            
-            filteredWorkouts = [...filteredWorkouts, ...additionalShortWorkouts];
-          }
+          const additionalWorkouts = filterWorkoutsForUser({
+            workouts,
+            userProfile: userProfileForFiltering,
+          })
+            .filter(w => {
+              // Skip already included workouts
+              if (filteredWorkouts.includes(w)) return false;
+              
+              return true;
+            })
+            .sort(() => 0.5 - Math.random())
+            .slice(0, count - filteredWorkouts.length);
           
-          // If we still don't have enough, add some random workouts
-          if (filteredWorkouts.length < count) {
-            const additionalWorkouts = workouts
-              .filter(w => {
-                // Skip already included workouts
-                if (filteredWorkouts.includes(w)) return false;
-                
-                // Check fitness level appropriateness
-                if (w.difficulty) {
-                  if (userFitnessLevel === 'beginner') {
-                    return w.difficulty === 'beginner';
-                  } else if (userFitnessLevel === 'intermediate') {
-                    return w.difficulty === 'beginner' || w.difficulty === 'intermediate';
-                  }
-                }
-                
-                return true;
-              })
-              .sort(() => 0.5 - Math.random())
-              .slice(0, count - filteredWorkouts.length);
-            
-            filteredWorkouts = [...filteredWorkouts, ...additionalWorkouts];
-          }
+          filteredWorkouts = [...filteredWorkouts, ...additionalWorkouts];
         }
         
         // Randomize the order a bit to avoid always showing the same workouts

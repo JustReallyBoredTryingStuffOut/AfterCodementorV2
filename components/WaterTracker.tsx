@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { Droplets, Plus, Minus, Settings } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 import { useTheme } from '@/context/ThemeContext';
 import { useHealthStore } from '@/store/healthStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useWaterStore } from '@/store/waterStore';
 import Button from './Button';
 
 interface WaterBottle {
@@ -32,6 +34,13 @@ const WaterTracker: React.FC = () => {
     healthGoals,
     updateHealthGoals
   } = useHealthStore();
+  const { 
+    preferredBottleSize, 
+    favoriteBottles, 
+    setPreferredBottleSize, 
+    addFavoriteBottle, 
+    removeFavoriteBottle 
+  } = useWaterStore();
   const { scheduleWaterNotification, settings, updateSettings } = useNotificationStore();
   const { waterTrackingMode, waterTrackingEnabled } = useSettingsStore();
 
@@ -115,6 +124,44 @@ const WaterTracker: React.FC = () => {
     }
   };
 
+  // Test function to trigger immediate water notification
+  const testWaterNotification = async () => {
+    try {
+      // Request notification permissions if not granted
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        if (newStatus !== 'granted') {
+          Alert.alert("Permission Required", "Please enable notifications in your device settings to test water reminders.");
+          return;
+        }
+      }
+
+      // Schedule an immediate notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "💧 Hydration Reminder",
+          body: "Time to drink some water! Stay hydrated and healthy.",
+          data: { type: "water_reminder" },
+        },
+        trigger: null, // Immediate notification
+      });
+
+      Alert.alert(
+        "✅ Test Notification Sent!",
+        "You should see a water reminder notification appear on your device. Check your notification center if you don't see it immediately.",
+        [{ text: "Got it!", style: "default" }]
+      );
+    } catch (error) {
+      console.error("Failed to send test notification:", error);
+      Alert.alert(
+        "❌ Test Failed",
+        "Unable to send test notification. Please check your notification permissions.",
+        [{ text: "OK", style: "default" }]
+      );
+    }
+  };
+
   const progressPercentage = Math.min((todayIntake / dailyGoal) * 100, 100);
   const remainingAmount = Math.max(dailyGoal - todayIntake, 0);
 
@@ -162,6 +209,12 @@ const WaterTracker: React.FC = () => {
               style={[styles.minimalSettingsButton, { backgroundColor: colors.backgroundLight }]}
             >
               <Settings size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={testWaterNotification}
+              style={[styles.minimalSettingsButton, { backgroundColor: colors.success }]}
+            >
+              <Text style={[styles.minimalButtonText, { color: colors.white, fontSize: 12 }]}>Test</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -224,6 +277,39 @@ const WaterTracker: React.FC = () => {
                   </View>
                 </View>
 
+                {/* Preferred Bottle Size */}
+                <View style={styles.settingSection}>
+                  <Text style={[styles.settingTitle, { color: colors.text }]}>Preferred Bottle Size</Text>
+                  <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                    This will be your quick-add button
+                  </Text>
+                  <View style={styles.goalAdjuster}>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { 
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                      }]}
+                      onPress={() => setPreferredBottleSize(Math.max(preferredBottleSize - 50, 100))}
+                    >
+                      <Minus size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={[styles.goalAmount, { color: colors.text }]}>
+                      {preferredBottleSize}ml
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.adjustButton, { 
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                      }]}
+                      onPress={() => setPreferredBottleSize(preferredBottleSize + 50)}
+                    >
+                      <Plus size={20} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 {/* Quick Add Buttons */}
                 <View style={styles.settingSection}>
                   <Text style={[styles.settingTitle, { color: colors.text }]}>Quick Add</Text>
@@ -275,6 +361,12 @@ const WaterTracker: React.FC = () => {
         >
           <Settings size={20} color={colors.textSecondary} />
         </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={testWaterNotification}
+          style={[styles.settingsButton, { backgroundColor: colors.success, marginLeft: 8 }]}
+        >
+          <Text style={[styles.testButtonText, { color: colors.white }]}>Test</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Progress Circle */}
@@ -306,10 +398,40 @@ const WaterTracker: React.FC = () => {
       {/* Quick Actions */}
       <View style={styles.quickActions}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Add</Text>
+        
+        {/* Preferred Bottle - Highlighted */}
+        <View style={styles.preferredBottleSection}>
+          <Text style={[styles.preferredBottleLabel, { color: colors.textSecondary }]}>
+            Your Preferred Bottle
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.preferredBottleButton,
+              { 
+                backgroundColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }
+            ]}
+            onPress={() => addWater(preferredBottleSize)}
+          >
+            <Droplets size={24} color={colors.white} />
+            <Text style={[styles.preferredBottleAmount, { color: colors.white }]}>
+              {preferredBottleSize}ml
+            </Text>
+            <Text style={[styles.preferredBottleText, { color: colors.white }]}>
+              Quick Add
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
         <View style={styles.bottleGrid}>
-          {defaultBottles.slice(0, 4).map((bottle) => (
+          {favoriteBottles.slice(0, 4).map((bottleSize) => (
             <TouchableOpacity
-              key={bottle.id}
+              key={bottleSize}
               style={[
                 styles.bottleButton,
                 { 
@@ -323,14 +445,14 @@ const WaterTracker: React.FC = () => {
                   elevation: 2,
                 }
               ]}
-              onPress={() => addWater(bottle.capacity)}
+              onPress={() => addWater(bottleSize)}
             >
               <Droplets size={20} color={colors.primary} />
               <Text style={[styles.bottleAmount, { color: colors.primary }]}>
-                {bottle.capacity}ml
+                {bottleSize}ml
               </Text>
               <Text style={[styles.bottleName, { color: colors.textSecondary }]}>
-                {bottle.name}
+                Favorite
               </Text>
             </TouchableOpacity>
           ))}
@@ -534,6 +656,39 @@ const WaterTracker: React.FC = () => {
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                   Recommended: 2000-3000ml per day
                 </Text>
+              </View>
+
+              {/* Preferred Bottle Size */}
+              <View style={styles.settingSection}>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>Preferred Bottle Size</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  Set your default quick-add button size
+                </Text>
+                <View style={styles.goalAdjuster}>
+                  <TouchableOpacity
+                    style={[styles.adjustButton, { 
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                    }]}
+                    onPress={() => setPreferredBottleSize(Math.max(preferredBottleSize - 50, 100))}
+                  >
+                    <Minus size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                  <Text style={[styles.goalAmount, { color: colors.text }]}>
+                    {preferredBottleSize}ml
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.adjustButton, { 
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                    }]}
+                    onPress={() => setPreferredBottleSize(preferredBottleSize + 50)}
+                  >
+                    <Plus size={20} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Reminders */}
@@ -865,6 +1020,34 @@ const styles = StyleSheet.create({
   minimalProgressFill: {
     height: '100%',
     borderRadius: 2,
+  },
+  testButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  preferredBottleSection: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  preferredBottleLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  preferredBottleButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  preferredBottleAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  preferredBottleText: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

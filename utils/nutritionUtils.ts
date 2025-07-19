@@ -210,3 +210,65 @@ export const calculateMacroGoals = (
     fat: fatGoal,
   };
 }; 
+
+// Hybrid calorie calculation system
+import type { UserProfile } from '../types';
+
+/**
+ * Estimate calories burned for a workout/activity if HealthKit data is unavailable.
+ * Uses user profile (weight, activity level, etc) and activity type/duration.
+ */
+export function estimateCaloriesBurned({
+  weight,
+  activityLevel,
+  durationMinutes = 30,
+  activityType = 'general',
+}: {
+  weight: number;
+  activityLevel: string;
+  durationMinutes?: number;
+  activityType?: string;
+}): number {
+  // MET values for common activities
+  const METS: Record<string, number> = {
+    walking: 3.5,
+    running: 7.5,
+    cycling: 6.8,
+    swimming: 6.0,
+    hiking: 6.0,
+    hiit: 8.0,
+    strength: 5.0,
+    general: 4.0,
+  };
+  const met = METS[activityType] || METS['general'];
+  // Calories burned = MET * weight (kg) * duration (hr)
+  return Math.round(met * weight * (durationMinutes / 60));
+}
+
+/**
+ * Get calories burned for today, using HealthKit if available, otherwise estimate.
+ * Pass in actualCalories (from HealthKit) if available, otherwise will estimate.
+ */
+export function getTodayCaloriesBurned({
+  userProfile,
+  actualCalories,
+  fallbackActivityType = 'general',
+  fallbackDuration = 30,
+}: {
+  userProfile: UserProfile;
+  actualCalories?: number;
+  fallbackActivityType?: string;
+  fallbackDuration?: number;
+}): { calories: number; source: 'actual' | 'estimate' } {
+  if (typeof actualCalories === 'number' && actualCalories > 0) {
+    return { calories: actualCalories, source: 'actual' };
+  }
+  // Estimate based on user profile
+  const calories = estimateCaloriesBurned({
+    weight: userProfile.weight,
+    activityLevel: userProfile.activityLevel,
+    durationMinutes: fallbackDuration,
+    activityType: fallbackActivityType,
+  });
+  return { calories, source: 'estimate' };
+} 

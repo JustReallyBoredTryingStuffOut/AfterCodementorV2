@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, TextInput, ScrollView, Platform, ActivityIndicator, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useGamificationStore } from '@/store/gamificationStore';
 import { useMacroStore } from '@/store/macroStore';
 import { useWorkoutStore } from '@/store/workoutStore';
@@ -11,6 +12,7 @@ import { colors } from '@/constants/colors';
 import CustomDropdown from '@/components/CustomDropdown';
 import Button from '@/components/Button';
 import { LinearGradient } from 'expo-linear-gradient';
+import NotificationHandler from '@/components/NotificationHandler';
 
 // App name
 export const APP_NAME = "FitQuest";
@@ -42,6 +44,7 @@ export default function RootLayout() {
   const [activityLevel, setActivityLevel] = useState(userProfile.activityLevel || "moderate");
   const [fitnessGoal, setFitnessGoal] = useState(userProfile.fitnessGoal || "maintain");
   const [fitnessLevel, setFitnessLevel] = useState(userProfile.fitnessLevel || "beginner");
+  const [targetWeight, setTargetWeight] = useState(userProfile.targetWeight?.toString() || "");
   
   // Health disclaimer acceptance
   const [healthDisclaimerAccepted, setHealthDisclaimerAccepted] = useState(false);
@@ -51,6 +54,7 @@ export default function RootLayout() {
   const [weightError, setWeightError] = useState("");
   const [heightError, setHeightError] = useState("");
   const [birthYearError, setBirthYearError] = useState("");
+  const [targetWeightError, setTargetWeightError] = useState("");
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -136,11 +140,21 @@ export default function RootLayout() {
     return () => subscription?.remove();
   }, [appState]);
 
+
+
   // Check if it's the first launch
   useEffect(() => {
     const checkFirstLaunch = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem('hasLaunched');
+        
+        // TEMPORARY: Force onboarding for testing
+        // Uncomment the next line to force onboarding
+        await AsyncStorage.removeItem('hasLaunched');
+        
+        // TEMPORARY: Force onboarding by clearing completion status
+        // Uncomment the next line to force onboarding
+        // await AsyncStorage.removeItem('gamification-storage');
         
         if (hasLaunched === null) {
           setIsFirstLaunch(true);
@@ -304,6 +318,35 @@ export default function RootLayout() {
     return true;
   };
   
+  // Validate target weight input
+  const validateTargetWeight = (value: string) => {
+    if (!value.trim()) {
+      setTargetWeightError("Target weight is required for weight loss/gain goals");
+      return false;
+    }
+    const targetWeightNum = parseFloat(value);
+    if (isNaN(targetWeightNum) || targetWeightNum <= 0 || targetWeightNum > 500) {
+      setTargetWeightError("Please enter a valid target weight");
+      return false;
+    }
+    
+    // Check if target weight makes sense based on current weight and goal
+    const currentWeightNum = parseFloat(weight) || 0;
+    if (currentWeightNum > 0) {
+      if (fitnessGoal === "lose" && targetWeightNum >= currentWeightNum) {
+        setTargetWeightError("Target weight should be less than current weight for weight loss");
+        return false;
+      }
+      if (fitnessGoal === "gain" && targetWeightNum <= currentWeightNum) {
+        setTargetWeightError("Target weight should be more than current weight for weight gain");
+        return false;
+      }
+    }
+    
+    setTargetWeightError("");
+    return true;
+  };
+  
   // Handle continue button press
   const handleContinue = () => {
     // If we're on the name step, validate name
@@ -320,6 +363,17 @@ export default function RootLayout() {
       const isBirthYearValid = validateBirthYear(birthYear);
       
       if (!isWeightValid || !isHeightValid || !isBirthYearValid) {
+        return;
+      }
+    }
+    
+    // If we're on the fitness profile step, validate target weight if needed
+    if (currentOnboardingStep === 6) {
+      const isTargetWeightValid = (fitnessGoal === "lose" || fitnessGoal === "gain") 
+        ? validateTargetWeight(targetWeight) 
+        : true;
+      
+      if (!isTargetWeightValid) {
         return;
       }
     }
@@ -359,6 +413,9 @@ export default function RootLayout() {
       fitnessGoal,
       activityLevel,
       fitnessLevel,
+      targetWeight: (fitnessGoal === "lose" || fitnessGoal === "gain") && targetWeight 
+        ? parseFloat(targetWeight) 
+        : undefined,
       dateOfBirth: null, // We're only collecting year, not full date
     });
     
@@ -584,7 +641,14 @@ export default function RootLayout() {
           <Text style={styles.formLabel}>Fitness Goal</Text>
           <CustomDropdown
             value={fitnessGoal}
-            onValueChange={setFitnessGoal}
+            onValueChange={(value) => {
+              setFitnessGoal(value);
+              // Clear target weight when goal changes to maintain
+              if (value === "maintain") {
+                setTargetWeight("");
+                setTargetWeightError("");
+              }
+            }}
             options={fitnessGoalOptions}
             placeholder="Select fitness goal"
           />
@@ -596,6 +660,36 @@ export default function RootLayout() {
             options={fitnessLevelOptions}
             placeholder="Select fitness level"
           />
+
+          {/* Show target weight field only for lose/gain goals */}
+          {(fitnessGoal === "lose" || fitnessGoal === "gain") && (
+            <>
+              <Text style={styles.formLabel}>
+                Target Weight (kg) <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.textInput, targetWeightError ? styles.inputError : null]}
+                value={targetWeight}
+                onChangeText={(text) => {
+                  setTargetWeight(text);
+                  if (text.trim()) validateTargetWeight(text);
+                }}
+                placeholder={fitnessGoal === "lose" ? "65" : "80"}
+                keyboardType="numeric"
+                placeholderTextColor={colors.textLight}
+              />
+              {targetWeightError ? (
+                <Text style={styles.errorText}>{targetWeightError}</Text>
+              ) : (
+                <Text style={styles.inputHint}>
+                  {fitnessGoal === "lose" 
+                    ? "Enter your target weight for weight loss"
+                    : "Enter your target weight for weight gain"
+                  }
+                </Text>
+              )}
+            </>
+          )}
         </View>
       ),
       action: () => handleContinue(),
@@ -884,7 +978,10 @@ export default function RootLayout() {
           </View>
         </Animated.View>
       ) : (
-        <Stack screenOptions={{ headerShown: false }} />
+        <>
+          <NotificationHandler />
+          <Stack screenOptions={{ headerShown: false }} />
+        </>
       )}
     </ThemeProvider>
   );

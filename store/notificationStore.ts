@@ -362,8 +362,9 @@ export const useNotificationStoreState = create<NotificationState>()(
               
               await Notifications.scheduleNotificationAsync({
                 content: {
-                  title: "Hydration Reminder",
-                  body: "Time to drink some water! Stay hydrated.",
+                  title: "💧 Hydration Reminder",
+                  body: "Time to drink some water! Stay hydrated and healthy.",
+                  data: { type: "water_reminder" },
                 },
                 trigger: { 
                   type: "timeInterval",

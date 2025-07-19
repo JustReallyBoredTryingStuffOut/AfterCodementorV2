@@ -6,6 +6,7 @@ import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { useMacroStore } from "@/store/macroStore";
 import { useRouter } from "expo-router";
+import { calculateWeightProgress as calculateSmartWeightProgress } from "@/utils/dateUtils";
 
 type WeightTrackerProps = {
   compact?: boolean;
@@ -23,7 +24,7 @@ export default function WeightTracker({
   onBackPress
 }: WeightTrackerProps) {
   const router = useRouter();
-  const { weightLogs, calculateWeightProgress, getWeightTrend, removeWeightLog, syncWeightFromHealthKit } = useHealthStore();
+  const { weightLogs, calculateWeightProgress: healthStoreProgress, getWeightTrend, removeWeightLog, syncWeightFromHealthKit } = useHealthStore();
   const { userProfile } = useMacroStore();
   
   // Sync weight data from HealthKit when component mounts
@@ -39,8 +40,24 @@ export default function WeightTracker({
     syncWeightData();
   }, [syncWeightFromHealthKit]);
   
-  // Get weight progress
-  const progress = calculateWeightProgress();
+  // Get weight progress from health store
+  const healthProgress = healthStoreProgress();
+  
+  // Get smart progress tracking using onboarding data
+  const currentWeight = healthProgress.currentWeight;
+  const startWeight = userProfile?.weight || 0; // Use onboarding weight as baseline
+  const targetWeight = userProfile?.targetWeight || 0; // Get target weight from onboarding
+  
+  // Use onboarding weight as fallback if no HealthKit data
+  const displayWeight = currentWeight > 0 ? currentWeight : startWeight;
+  const weightSource = currentWeight > 0 ? 'HealthKit' : 'Onboarding';
+  
+  const smartProgress = calculateSmartWeightProgress({
+    startWeight: startWeight || 0,
+    currentWeight: displayWeight || 0,
+    goal: userProfile?.fitnessGoal || 'maintain',
+    targetWeight: targetWeight || 0,
+  });
   
   // Get weight trend for the last 30 days
   const trend = getWeightTrend(30);
@@ -113,6 +130,20 @@ export default function WeightTracker({
     }
   };
   
+  // Safety check - don't render if userProfile is not loaded yet
+  if (!userProfile) {
+    return (
+      <View style={[styles.container, standalone && styles.standaloneContainer]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Weight Tracker</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
+  
   if (compact) {
     return (
       <TouchableOpacity 
@@ -124,19 +155,17 @@ export default function WeightTracker({
           <TrendingUp size={16} color={colors.primary} />
         </View>
         
-        {progress.currentWeight > 0 ? (
-          <Text style={styles.compactWeight}>{progress.currentWeight.toFixed(1)} kg</Text>
+        {currentWeight > 0 ? (
+          <Text style={styles.compactWeight}>{currentWeight.toFixed(1)} kg</Text>
+        ) : startWeight > 0 ? (
+          <Text style={styles.compactWeight}>{startWeight.toFixed(1)} kg</Text>
         ) : (
           <Text style={styles.compactNoData}>No data</Text>
         )}
         
-        {progress.weightLost !== 0 && (
-          <Text style={[
-            styles.compactChange,
-            progress.weightLost > 0 ? styles.weightLoss : styles.weightGain
-          ]}>
-            {progress.weightLost > 0 ? "-" : "+"}{Math.abs(progress.weightLost).toFixed(1)} kg
-          </Text>
+        {/* Show weight source indicator */}
+        {currentWeight === 0 && startWeight > 0 && (
+          <Text style={styles.compactSource}>from onboarding</Text>
         )}
       </TouchableOpacity>
     );
@@ -176,29 +205,134 @@ export default function WeightTracker({
         <>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{progress.currentWeight.toFixed(1)}</Text>
-              <Text style={styles.statLabel}>Current (kg)</Text>
+              <Text style={styles.statValue}>{displayWeight.toFixed(1)}</Text>
+              <Text style={styles.statLabel}>
+                {weightSource === 'HealthKit' ? 'Current (kg)' : 'Weight (kg)'}
+              </Text>
+              {weightSource === 'Onboarding' && (
+                <Text style={styles.weightSource}>from onboarding</Text>
+              )}
             </View>
             
-            {progress.targetWeight > 0 && (
+            {/* Show target weight from onboarding */}
+            {targetWeight > 0 && (
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{progress.targetWeight.toFixed(1)}</Text>
+                <Text style={styles.statValue}>{targetWeight.toFixed(1)}</Text>
                 <Text style={styles.statLabel}>Target (kg)</Text>
               </View>
             )}
             
-            {progress.weightLost !== 0 && (
+            {/* Show smart progress stats */}
+            {smartProgress.kgToGo > 0 && (
               <View style={styles.statItem}>
                 <Text style={[
                   styles.statValue,
-                  progress.weightLost > 0 ? styles.weightLoss : styles.weightGain
+                  smartProgress.direction === 'down' ? styles.weightLoss : 
+                  smartProgress.direction === 'up' ? styles.weightGain : styles.weightMaintain
                 ]}>
-                  {progress.weightLost > 0 ? "-" : "+"}{Math.abs(progress.weightLost).toFixed(1)}
+                  {smartProgress.kgToGo.toFixed(1)}
                 </Text>
-                <Text style={styles.statLabel}>Change (kg)</Text>
+                <Text style={styles.statLabel}>To go (kg)</Text>
               </View>
             )}
           </View>
+          
+          {/* Smart Progress Section */}
+          {smartProgress.percentToGoal > 0 && (
+            <View style={styles.smartProgressContainer}>
+              <View style={styles.smartProgressHeader}>
+                <Text style={styles.smartProgressTitle}>
+                  {smartProgress.direction === 'down' ? 'Weight Loss' : 
+                   smartProgress.direction === 'up' ? 'Weight Gain' : 'Weight Maintenance'} Progress
+                </Text>
+                <Text style={styles.smartProgressPercent}>
+                  {Math.round(smartProgress.percentToGoal)}%
+                </Text>
+              </View>
+              
+              <View style={styles.progressBarContainer}>
+                <View 
+                  style={[
+                    styles.progressBar,
+                    { width: `${Math.min(100, smartProgress.percentToGoal)}%` }
+                  ]}
+                />
+              </View>
+              
+              <View style={styles.smartProgressFooter}>
+                <Text style={styles.smartProgressText}>
+                  {smartProgress.kgToGo > 0 
+                    ? `${smartProgress.kgToGo.toFixed(1)} kg to go`
+                    : 'Goal reached! 🎉'
+                  }
+                </Text>
+                
+                {smartProgress.onTrack && (
+                  <Text style={styles.onTrackBadge}>On Track 🎯</Text>
+                )}
+              </View>
+            </View>
+          )}
+          
+          {/* Enhanced Progress Section for Weight Tracker Screen */}
+          {targetWeight > 0 && (
+            <View style={styles.enhancedProgressContainer}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.progressTitle}>Progress to Goal</Text>
+                <Text style={styles.progressPercentage}>
+                  {Math.round(smartProgress.percentToGoal)}%
+                </Text>
+              </View>
+              
+              <View style={styles.progressBarLarge}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${Math.min(100, smartProgress.percentToGoal)}%`,
+                      backgroundColor: smartProgress.direction === 'down' ? '#22C55E' : 
+                                   smartProgress.direction === 'up' ? '#3B82F6' : '#6B7280'
+                    }
+                  ]}
+                />
+              </View>
+              
+              <View style={styles.progressDetails}>
+                <View style={styles.progressDetailItem}>
+                  <Text style={styles.progressDetailLabel}>Starting Weight</Text>
+                  <Text style={styles.progressDetailValue}>{startWeight.toFixed(1)} kg</Text>
+                </View>
+                
+                <View style={styles.progressDetailItem}>
+                  <Text style={styles.progressDetailLabel}>Current Weight</Text>
+                  <Text style={styles.progressDetailValue}>{displayWeight.toFixed(1)} kg</Text>
+                </View>
+                
+                <View style={styles.progressDetailItem}>
+                  <Text style={styles.progressDetailLabel}>Target Weight</Text>
+                  <Text style={styles.progressDetailValue}>{targetWeight.toFixed(1)} kg</Text>
+                </View>
+                
+                <View style={styles.progressDetailItem}>
+                  <Text style={styles.progressDetailLabel}>Remaining</Text>
+                  <Text style={[
+                    styles.progressDetailValue,
+                    { color: smartProgress.direction === 'down' ? '#22C55E' : 
+                             smartProgress.direction === 'up' ? '#3B82F6' : '#6B7280' }
+                  ]}>
+                    {smartProgress.kgToGo.toFixed(1)} kg
+                  </Text>
+                </View>
+              </View>
+              
+              {smartProgress.onTrack && (
+                <View style={styles.onTrackContainer}>
+                  <Text style={styles.onTrackText}>On Track! 🎯</Text>
+                  <Text style={styles.onTrackSubtext}>Keep up the great work!</Text>
+                </View>
+              )}
+            </View>
+          )}
           
           {weights.length > 1 && (
             <View style={styles.chartContainer}>
@@ -220,30 +354,24 @@ export default function WeightTracker({
                 ))}
               </Svg>
               
-              {standalone && (
-                <View style={styles.chartLabels}>
-                  <Text style={styles.chartLabel}>{trend.dates[0]}</Text>
-                  {trend.dates.length > 2 && (
-                    <Text style={styles.chartLabel}>
-                      {trend.dates[Math.floor(trend.dates.length / 2)]}
-                    </Text>
-                  )}
-                  <Text style={styles.chartLabel}>
-                    {trend.dates[trend.dates.length - 1]}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.chartLabels}>
+                <Text style={styles.chartLabel}>
+                  {weights.length > 0 ? weights[weights.length - 1].toFixed(1) : "0"} kg
+                </Text>
+                <Text style={styles.chartLabel}>
+                  {weights.length > 0 ? weights[0].toFixed(1) : "0"} kg
+                </Text>
+              </View>
             </View>
           )}
           
-          {/* Recent logs are now handled by the parent component (WeightLogScreen) */}
-          
-          {standalone && progress.targetWeight > 0 && (
+          {/* Original progress section for backward compatibility */}
+          {standalone && healthProgress.targetWeight > 0 && (
             <View style={styles.progressContainer}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressTitle}>Progress to Goal</Text>
                 <Text style={styles.progressPercent}>
-                  {Math.round(progress.percentComplete)}%
+                  {Math.round(healthProgress.percentComplete)}%
                 </Text>
               </View>
               
@@ -251,14 +379,14 @@ export default function WeightTracker({
                 <View 
                   style={[
                     styles.progressBar,
-                    { width: `${progress.percentComplete}%` }
+                    { width: `${healthProgress.percentComplete}%` }
                   ]}
                 />
               </View>
               
-              {progress.remainingWeight > 0 && (
+              {healthProgress.remainingWeight > 0 && (
                 <Text style={styles.remainingText}>
-                  {progress.remainingWeight.toFixed(1)} kg to go
+                  {healthProgress.remainingWeight.toFixed(1)} kg to go
                 </Text>
               )}
             </View>
@@ -270,6 +398,22 @@ export default function WeightTracker({
           <Text style={styles.emptySubtext}>
             Tap the + button to log your weight
           </Text>
+          
+          {/* Show onboarding weight if available */}
+          {startWeight > 0 && (
+            <View style={styles.onboardingWeightContainer}>
+              <Text style={styles.onboardingWeightLabel}>Your starting weight:</Text>
+              <Text style={styles.onboardingWeightValue}>{startWeight.toFixed(1)} kg</Text>
+            </View>
+          )}
+          
+          {/* Show target weight if available */}
+          {targetWeight > 0 && (
+            <View style={styles.targetWeightContainer}>
+              <Text style={styles.targetWeightLabel}>Your target weight:</Text>
+              <Text style={styles.targetWeightValue}>{targetWeight.toFixed(1)} kg</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -471,9 +615,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  compactChange: {
-    fontSize: 14,
-    fontWeight: "500",
+  compactSource: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   recentLogsContainer: {
     marginTop: 16,
@@ -512,5 +657,166 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 16,
     backgroundColor: "rgba(255, 59, 48, 0.1)",
+  },
+  // New styles for smart progress tracking
+  smartProgressContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(74, 144, 226, 0.05)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 144, 226, 0.1)',
+  },
+  smartProgressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  smartProgressTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  smartProgressPercent: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  smartProgressFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  smartProgressText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  onTrackBadge: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.secondary,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  onTrackText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.secondary,
+    marginTop: 2,
+  },
+  weightMaintain: {
+    color: colors.primary,
+  },
+  weightSource: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  onboardingWeightContainer: {
+    marginTop: 16,
+    backgroundColor: 'rgba(34, 197, 94, 0.05)',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.1)',
+  },
+  onboardingWeightLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  onboardingWeightValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  targetWeightContainer: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255, 59, 48, 0.05)',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.1)',
+  },
+  targetWeightLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  targetWeightValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  enhancedProgressContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(107, 114, 128, 0.05)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 114, 128, 0.1)',
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  progressBarLarge: {
+    height: 12,
+    backgroundColor: colors.border,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 6,
+  },
+  progressDetails: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 12,
+  },
+  progressDetailItem: {
+    alignItems: "center",
+  },
+  progressDetailLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  progressDetailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  progressPercentage: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  onTrackContainer: {
+    alignItems: "center",
+  },
+  onTrackText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.secondary,
+    marginTop: 4,
+  },
+  onTrackSubtext: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });

@@ -54,6 +54,7 @@ const defaultUserProfile: UserProfile = {
   fitnessGoal: "maintain",
   activityLevel: "moderate",
   fitnessLevel: "beginner", // Added fitness level
+  targetWeight: undefined, // Will be set based on fitness goal
   dateOfBirth: null,
 };
 

@@ -8,12 +8,17 @@ interface WaterState {
   currentIntake: WaterIntake | null;
   isLoading: boolean;
   error: string | null;
+  preferredBottleSize: number; // in ml
+  favoriteBottles: number[]; // Array of favorite bottle sizes in ml
   
   // Actions
   getWaterIntakeByDate: (date: Date) => WaterIntake | null;
   addWaterIntake: (amount: number) => void;
   updateWaterIntake: (date: Date, amount: number) => void;
   setTarget: (target: number) => void;
+  setPreferredBottleSize: (size: number) => void;
+  addFavoriteBottle: (size: number) => void;
+  removeFavoriteBottle: (size: number) => void;
   clearError: () => void;
 }
 
@@ -24,6 +29,8 @@ export const useWaterStore = create<WaterState>()(
       currentIntake: null,
       isLoading: false,
       error: null,
+      preferredBottleSize: 500, // Default 500ml bottle
+      favoriteBottles: [250, 500, 750, 1000], // Default favorite sizes
 
       getWaterIntakeByDate: (date: Date) => {
         const { waterIntakes } = get();
@@ -91,6 +98,24 @@ export const useWaterStore = create<WaterState>()(
             target,
             goal: target
           } : null
+        }));
+      },
+
+      setPreferredBottleSize: (size: number) => {
+        set({ preferredBottleSize: size });
+      },
+
+      addFavoriteBottle: (size: number) => {
+        set(state => ({
+          favoriteBottles: state.favoriteBottles.includes(size) 
+            ? state.favoriteBottles 
+            : [...state.favoriteBottles, size].sort((a, b) => a - b)
+        }));
+      },
+
+      removeFavoriteBottle: (size: number) => {
+        set(state => ({
+          favoriteBottles: state.favoriteBottles.filter(bottle => bottle !== size)
         }));
       },
 

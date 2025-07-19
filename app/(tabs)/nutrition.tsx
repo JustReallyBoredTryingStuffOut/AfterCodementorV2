@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Plus, ChevronRight, UtensilsCrossed, BarChart, Calendar, ArrowLeft, Info, Coffee, Sun, Moon, Droplets, Lightbulb } from 'lucide-react-native';
+import { Plus, ChevronRight, UtensilsCrossed, BarChart, Calendar, ArrowLeft, Info, Coffee, Sun, Moon, Droplets, Lightbulb, Bell } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useMacroStore } from '@/store/macroStore';
 import { useGamificationStore } from '@/store/gamificationStore';
@@ -9,6 +9,7 @@ import { useWaterStore } from '@/store/waterStore';
 import { useMealStore } from '@/store/mealStore';
 import MacroProgress from '@/components/MacroProgress';
 import MacroInfoModal from '@/components/MacroInfoModal';
+import * as Notifications from "expo-notifications";
 
 export default function NutritionScreen() {
   const router = useRouter();
@@ -68,6 +69,44 @@ export default function NutritionScreen() {
   
   const handleGoBack = () => {
     router.back();
+  };
+
+  // Test water notification function
+  const testWaterNotification = async () => {
+    try {
+      // Request notification permissions if not granted
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        if (newStatus !== 'granted') {
+          Alert.alert("Permission Required", "Please enable notifications in your device settings to test water reminders.");
+          return;
+        }
+      }
+
+      // Schedule an immediate notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "💧 Hydration Reminder",
+          body: "Time to drink some water! Stay hydrated and healthy.",
+          data: { type: "water_reminder" },
+        },
+        trigger: null, // Immediate notification
+      });
+
+      Alert.alert(
+        "✅ Test Notification Sent!",
+        "You should see a water reminder notification appear on your device. Check your notification center if you don't see it immediately.",
+        [{ text: "Got it!", style: "default" }]
+      );
+    } catch (error) {
+      console.error("Failed to send test notification:", error);
+      Alert.alert(
+        "❌ Test Failed",
+        "Unable to send test notification. Please check your notification permissions.",
+        [{ text: "OK", style: "default" }]
+      );
+    }
   };
 
   // Generate nutrition tips
@@ -174,6 +213,14 @@ export default function NutritionScreen() {
             >
               <Coffee size={20} color={colors.primary} />
               <Text style={[styles.quickActionText, { color: colors.text }]}>Snack</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.quickActionButton, { backgroundColor: colors.success }]}
+              onPress={testWaterNotification}
+            >
+              <Bell size={20} color={colors.white} />
+              <Text style={[styles.quickActionText, { color: colors.white }]}>Test Water</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -59,6 +59,7 @@ import DailyQuests from "@/components/DailyQuests";
 import ChallengeCard from "@/components/ChallengeCard";
 import AchievementModal from "@/components/AchievementModal";
 import { APP_NAME } from "@/app/_layout";
+import { calculateWeightProgress as calculateSmartWeightProgress } from "@/utils/dateUtils";
 
 // Voice configuration for a more natural female voice
 const voiceConfig = {
@@ -712,11 +713,22 @@ export default function HomeScreen() {
     }
   };
   
+  // Get smart progress tracking based on onboarding data
+  const currentWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : 0;
+  const startWeight = userProfile?.weight || 0; // Use onboarding weight as baseline
+  
+  const smartProgress = calculateSmartWeightProgress({
+    startWeight: startWeight || 0,
+    currentWeight: currentWeight || 0,
+    goal: userProfile?.fitnessGoal || 'maintain',
+    targetWeight: 0, // Will be calculated if needed
+  });
+  
   return (
     <ScrollView 
-      style={[styles.container, { backgroundColor: colors.background }]} 
-      contentContainerStyle={styles.content}
-      scrollEventThrottle={16} // Prevent excessive scroll events
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -911,6 +923,29 @@ export default function HomeScreen() {
           
           {workoutRecommendationsEnabled ? (
             <>
+              {/* Show personalized recommendation info */}
+              <View style={[styles.personalizationCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.personalizationTitle, { color: colors.text }]}>
+                  Personalized for {userProfile.name || 'you'}
+                </Text>
+                <Text style={[styles.personalizationText, { color: colors.textSecondary }]}>
+                  {userProfile.fitnessGoal === 'lose' 
+                    ? "Weight loss focused workouts with cardio emphasis"
+                    : userProfile.fitnessGoal === 'gain'
+                    ? "Strength training workouts for muscle building"
+                    : "Balanced workouts for weight maintenance"
+                  }
+                </Text>
+                <Text style={[styles.personalizationText, { color: colors.textSecondary }]}>
+                  {userProfile.fitnessLevel === 'beginner'
+                    ? "Beginner-friendly exercises for safe progression"
+                    : userProfile.fitnessLevel === 'intermediate'
+                    ? "Progressive challenges to build strength"
+                    : "Advanced techniques to maximize results"
+                  }
+                </Text>
+              </View>
+              
               {recommendedWorkouts.map((workout) => (
                 <WorkoutCard 
                   key={workout.id} 
@@ -923,39 +958,28 @@ export default function HomeScreen() {
                 <View style={[styles.analysisCard, { backgroundColor: colors.card }]}>
                   <View style={styles.analysisHeader}>
                     <Zap size={20} color={colors.primary} />
-                    <Text style={[styles.analysisTitle, { color: colors.text }]}>Workout Insight</Text>
+                    <Text style={[styles.analysisTitle, { color: colors.text }]}>AI Insights</Text>
                   </View>
-                  <Text style={[styles.analysisTip, { color: colors.textSecondary }]} numberOfLines={3} ellipsizeMode="tail">
+                  
+                  <Text style={[styles.analysisText, { color: colors.textSecondary }]}>
                     {latestAnalysis.recommendations.exerciseRecommendations[0]}
                   </Text>
-                  <TouchableOpacity 
-                    style={styles.analysisButton}
-                    onPress={() => setShowWorkoutAnalysis(true)}
-                  >
-                    <Text style={[styles.analysisButtonText, { color: colors.primary }]}>View Full Analysis</Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </>
           ) : (
-            <TouchableOpacity 
-              style={[styles.enableRecommendationsCard, { backgroundColor: colors.card }]}
-              onPress={() => toggleWorkoutRecommendations(true)}
-            >
-              <Zap size={24} color={colors.primary} />
-              <Text style={[styles.enableRecommendationsText, { color: colors.textSecondary }]}>
-                Enable AI workout recommendations based on your fitness level, mood, and goals
+            <View style={[styles.disabledCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.disabledText, { color: colors.textSecondary }]}>
+                Enable AI recommendations to see personalized workout suggestions based on your fitness level and goals.
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.enableButton, { backgroundColor: colors.primary }]}
+                onPress={() => toggleWorkoutRecommendations(true)}
+              >
+                <Text style={[styles.enableButtonText, { color: colors.white }]}>Enable Recommendations</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          
-          <Button
-            title="Browse All Workouts"
-            onPress={() => router.push("/workouts")}
-            variant="outline"
-            style={styles.browseButton}
-            icon={<Plus size={18} color={colors.primary} />}
-          />
         </View>
       )}
       
@@ -1402,6 +1426,71 @@ export default function HomeScreen() {
           onClose={clearCelebration}
         />
       )}
+      
+      {/* Smart Progress Tracking Section */}
+      {smartProgress.percentToGoal > 0 && userProfile && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Progress</Text>
+            <Target size={20} color={colors.primary} />
+          </View>
+          
+          <View style={[styles.progressCard, { backgroundColor: colors.card }]}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressTitle, { color: colors.text }]}>
+                {smartProgress.direction === 'down' ? 'Weight Loss' : 
+                 smartProgress.direction === 'up' ? 'Weight Gain' : 'Weight Maintenance'} Progress
+              </Text>
+              <Text style={[styles.progressPercent, { color: colors.primary }]}>
+                {Math.round(smartProgress.percentToGoal)}%
+              </Text>
+            </View>
+            
+            <View style={[styles.progressBarContainer, { backgroundColor: colors.border }]}>
+              <View 
+                style={[
+                  styles.progressBar,
+                  { 
+                    width: `${Math.min(100, smartProgress.percentToGoal)}%`,
+                    backgroundColor: colors.primary
+                  }
+                ]}
+              />
+            </View>
+            
+            <View style={styles.progressFooter}>
+              <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                {smartProgress.kgToGo > 0 
+                  ? `${smartProgress.kgToGo.toFixed(1)} kg to go`
+                  : 'Goal reached! 🎉'
+                }
+              </Text>
+              
+              {smartProgress.onTrack && (
+                <View style={[styles.onTrackBadge, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                  <Text style={[styles.onTrackText, { color: colors.secondary }]}>On Track 🎯</Text>
+                </View>
+              )}
+            </View>
+            
+            {/* Show motivational message based on progress */}
+            <View style={styles.motivationContainer}>
+              <Text style={[styles.motivationText, { color: colors.textSecondary }]}>
+                {smartProgress.percentToGoal >= 100 
+                  ? "Amazing! You've reached your goal! Keep up the great work!"
+                  : smartProgress.percentToGoal >= 75
+                  ? "You're so close to your goal! Keep pushing!"
+                  : smartProgress.percentToGoal >= 50
+                  ? "Great progress! You're halfway there!"
+                  : smartProgress.percentToGoal >= 25
+                  ? "Good start! Every step counts towards your goal."
+                  : "Just getting started! Consistency is key to success."
+                }
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -1410,7 +1499,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  contentContainer: {
     padding: 16,
   },
   header: {
@@ -2158,5 +2247,115 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  // New styles for smart progress tracking
+  progressCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  progressPercent: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  progressText: {
+    fontSize: 14,
+  },
+  onTrackBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  onTrackText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  motivationContainer: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  motivationText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  personalizationCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  personalizationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  personalizationText: {
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  disabledCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  disabledText: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  enableButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  enableButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

@@ -106,7 +106,9 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
       <View style={styles.compactContainer}>
         <View style={styles.compactContent}>
           <Flame size={20} color={colors.primary} />
-          <Text style={styles.compactCalories}>{currentCalories.toLocaleString()}</Text>
+          <Text style={styles.compactCalories}>
+            {(dataSource === 'healthKit' && currentCalories === 0) ? 'No data' : currentCalories.toLocaleString()}
+          </Text>
           <Text style={styles.compactLabel}>calories</Text>
           
           {dataSource !== "unknown" && (
@@ -161,7 +163,7 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
       
       <View style={styles.caloriesContainer}>
         <Text style={styles.caloriesCount}>
-          {currentCalories.toLocaleString()}
+          {(dataSource === 'healthKit' && currentCalories === 0) ? 'No data' : currentCalories.toLocaleString()}
         </Text>
         <Text style={styles.caloriesLabel}>calories burned today</Text>
         

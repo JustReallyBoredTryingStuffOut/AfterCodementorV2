@@ -286,6 +286,26 @@ export default function WorkoutsScreen() {
                   Based on your {userProfile.fitnessLevel || "beginner"} fitness level and {userProfile.fitnessGoal || "general"} goals
                 </Text>
                 
+                {/* Show personalized recommendation info */}
+                <View style={styles.personalizationInfo}>
+                  <Text style={[styles.personalizationText, { color: colors.textSecondary }]}>
+                    {userProfile.fitnessGoal === 'lose' 
+                      ? "Focusing on workouts that support weight loss goals"
+                      : userProfile.fitnessGoal === 'gain'
+                      ? "Prioritizing strength training for muscle building"
+                      : "Balanced workouts for weight maintenance"
+                    }
+                  </Text>
+                  <Text style={[styles.personalizationText, { color: colors.textSecondary }]}>
+                    {userProfile.fitnessLevel === 'beginner'
+                      ? "Showing beginner-friendly workouts for safe progression"
+                      : userProfile.fitnessLevel === 'intermediate'
+                      ? "Mix of beginner and intermediate workouts for gradual challenge"
+                      : "Full range of workouts to match your advanced level"
+                    }
+                  </Text>
+                </View>
+                
                 {recommendedWorkouts.slice(0, 3).map((workout) => (
                   <WorkoutCard 
                     key={workout.id} 
@@ -672,5 +692,13 @@ const styles = StyleSheet.create({
   exerciseResultEquipmentText: {
     fontSize: 12,
     marginLeft: 4,
+  },
+  personalizationInfo: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  personalizationText: {
+    fontSize: 14,
+    marginBottom: 4,
   },
 });

@@ -406,6 +406,7 @@ export interface UserProfile {
   fitnessGoal: 'lose' | 'maintain' | 'gain';
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   fitnessLevel: 'beginner' | 'intermediate' | 'advanced';
+  targetWeight?: number; // Optional target weight for lose/gain goals
   dateOfBirth: Date | null;
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '../store/userStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useWaterStore } from '../store/waterStore';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 
@@ -11,6 +12,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user, updateUser, logout } = useUserStore();
   const { settings, updateSettings } = useSettingsStore();
+  const { preferredBottleSize, setPreferredBottleSize } = useWaterStore();
   const [isEditing, setIsEditing] = useState(false);
 
   const handleLogout = () => {
@@ -106,6 +108,44 @@ export default function SettingsScreen() {
           title: 'Time Zone',
           subtitle: 'UTC-05:00 (Eastern Time)',
           action: () => router.push('/timezone'),
+          showArrow: true,
+        },
+      ],
+    },
+    {
+      title: 'Water Tracking',
+      items: [
+        {
+          icon: 'water-outline',
+          title: 'Preferred Bottle Size',
+          subtitle: `${preferredBottleSize}ml - Your quick-add button`,
+          action: () => {
+            Alert.prompt(
+              'Set Preferred Bottle Size',
+              'Enter your preferred bottle size in ml:',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Save',
+                  onPress: (value) => {
+                    const size = parseInt(value || '500');
+                    if (size >= 100) {
+                      setPreferredBottleSize(size);
+                    }
+                  },
+                },
+              ],
+              'plain-text',
+              preferredBottleSize.toString(),
+            );
+          },
+          showArrow: true,
+        },
+        {
+          icon: 'droplet-outline',
+          title: 'Water Reminders',
+          subtitle: 'Get reminded to drink water',
+          action: () => router.push('/notifications'),
           showArrow: true,
         },
       ],
