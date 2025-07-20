@@ -4339,7 +4339,7 @@ GOAL CREATION EXAMPLES:
           </View>
         </KeyboardAvoidingView>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
