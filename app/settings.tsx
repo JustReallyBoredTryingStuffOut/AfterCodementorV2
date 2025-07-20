@@ -177,6 +177,18 @@ export default function SettingsScreen() {
       ],
     },
     {
+      title: 'Development',
+      items: [
+        {
+          icon: 'watch-outline',
+          title: 'Apple Watch Test',
+          subtitle: 'Test Apple Watch integration features',
+          action: () => router.push('/apple-watch-test'),
+          showArrow: true,
+        },
+      ],
+    },
+    {
       title: 'Support',
       items: [
         {
