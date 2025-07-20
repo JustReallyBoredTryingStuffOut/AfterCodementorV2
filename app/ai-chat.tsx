@@ -109,32 +109,44 @@ export default function AiChatScreen() {
   
   // Smart context function to gather user data
   const getUserContext = () => {
-    const currentWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : 0;
+    // Add safe defaults and null checks
+    const safeWeightLogs = weightLogs || [];
+    const safeWorkoutLogs = workoutLogs || [];
+    const safeScheduledWorkouts = scheduledWorkouts || [];
+    const safeStepCount = stepCount || 0;
+    const safeMacroGoals = macroGoals || [];
+    const safeAchievements = achievements || [];
+    const safeLevel = level || 1;
+    const safeExperience = experience || 0;
+    const safeMacroUserProfile = macroUserProfile || { preferredName: "", fitnessGoals: [], experienceLevel: 'beginner', preferredWorkoutTime: 'evening', motivationStyle: 'health', favoriteExercises: [], dislikedExercises: [], moodHistory: [] };
+    
+    const currentWeight = safeWeightLogs.length > 0 ? safeWeightLogs[safeWeightLogs.length - 1].weight : 0;
     const targetWeight = 0;
-    const recentWorkouts = workoutLogs.slice(-3); // Last 3 workouts
-    const todayWorkouts = scheduledWorkouts.filter(sw => {
+    const recentWorkouts = safeWorkoutLogs.slice(-3); // Last 3 workouts
+    const todayWorkouts = safeScheduledWorkouts.filter(sw => {
       const scheduleDate = new Date(sw.date);
       const today = new Date();
       return scheduleDate.toDateString() === today.toDateString();
     });
     
     return {
-      userProfile: macroUserProfile,
+      userProfile: safeMacroUserProfile,
       currentWeight,
       targetWeight,
-      stepCount,
-      macroGoals,
+      stepCount: safeStepCount,
+      macroGoals: safeMacroGoals,
       recentWorkouts,
       todayWorkouts,
-      achievements,
-      level,
-      experience
+      achievements: safeAchievements,
+      level: safeLevel,
+      experience: safeExperience
     };
   };
 
   // Enhanced AI functions for goal creation and analysis
   const analyzeExerciseProgress = (exerciseName: string) => {
-    const exerciseHistory = workoutLogs
+    const safeWorkoutLogs = workoutLogs || [];
+    const exerciseHistory = safeWorkoutLogs
       .flatMap(workout => workout.exercises || [])
       .filter(exercise => 
         exercise.name && exercise.name.toLowerCase().includes(exerciseName.toLowerCase()) ||
@@ -235,64 +247,76 @@ export default function AiChatScreen() {
   };
 
   const getGoalSuggestions = () => {
-    const context = getUserContext();
-    const suggestions = [];
-    
-    // Weight loss/gain suggestions
-    if (context.targetWeight > 0) {
-      const weightDiff = Math.abs(context.currentWeight - context.targetWeight);
-      if (weightDiff > 2) {
+    try {
+      const context = getUserContext();
+      const suggestions = [];
+      
+      // Weight loss/gain suggestions
+      if (context.targetWeight > 0) {
+        const weightDiff = Math.abs(context.currentWeight - context.targetWeight);
+        if (weightDiff > 2) {
+          suggestions.push({
+            type: 'weight',
+            text: `Lose ${weightDiff.toFixed(1)}kg by ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}`,
+            timeframe: 'monthly'
+          });
+        }
+      }
+      
+      // Step count suggestions
+      if (context.stepCount < 8000) {
         suggestions.push({
-          type: 'weight',
-          text: `Lose ${weightDiff.toFixed(1)}kg by ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}`,
-          timeframe: 'monthly'
+          type: 'activity',
+          text: `Increase daily steps to 10,000`,
+          timeframe: 'weekly'
         });
       }
-    }
-    
-    // Step count suggestions
-    if (context.stepCount < 8000) {
-      suggestions.push({
-        type: 'activity',
-        text: `Increase daily steps to 10,000`,
-        timeframe: 'weekly'
-      });
-    }
-    
-    // Workout frequency suggestions
-    if (context.recentWorkouts.length < 2) {
-      suggestions.push({
-        type: 'fitness',
-        text: `Complete 3 workouts this week`,
-        timeframe: 'weekly'
-      });
-    }
-    
-    // Exercise-specific suggestions based on recent workouts
-    const recentExercises = context.recentWorkouts
-      .flatMap(workout => workout.exercises || [])
-      .map(exercise => exercise.name)
-      .filter((name, index, arr) => arr.indexOf(name) === index);
-    
-    recentExercises.slice(0, 3).forEach(exerciseName => {
-      const analysis = analyzeExerciseProgress(exerciseName);
-      if (analysis.found && analysis.currentPR.weight > 0) {
+      
+      // Workout frequency suggestions
+      if (context.recentWorkouts && context.recentWorkouts.length < 2) {
         suggestions.push({
           type: 'fitness',
-          text: `Increase ${exerciseName} weight by 5lbs`,
-          timeframe: 'weekly',
-          exerciseName
+          text: `Complete 3 workouts this week`,
+          timeframe: 'weekly'
         });
       }
-    });
-    
-    return suggestions;
+      
+      // Exercise-specific suggestions based on recent workouts
+      if (context.recentWorkouts) {
+        const recentExercises = context.recentWorkouts
+          .flatMap(workout => workout.exercises || [])
+          .map(exercise => exercise.name)
+          .filter((name, index, arr) => arr.indexOf(name) === index);
+        
+        recentExercises.slice(0, 3).forEach(exerciseName => {
+          try {
+            const analysis = analyzeExerciseProgress(exerciseName);
+            if (analysis.found && analysis.currentPR.weight > 0) {
+              suggestions.push({
+                type: 'fitness',
+                text: `Increase ${exerciseName} weight by 5lbs`,
+                timeframe: 'weekly',
+                exerciseName
+              });
+            }
+          } catch (error) {
+            console.error("Error analyzing exercise progress:", error);
+          }
+        });
+      }
+      
+      return suggestions;
+    } catch (error) {
+      console.error("Error in getGoalSuggestions:", error);
+      return [];
+    }
   };
 
   // Progress tracking and reporting functions
   const getProgressReport = () => {
-    const context = getUserContext();
-    const { recentWorkouts, currentWeight, targetWeight, stepCount } = context;
+    try {
+      const context = getUserContext();
+      const { recentWorkouts, currentWeight, targetWeight, stepCount } = context;
     
     const report = {
       workouts: {
@@ -326,6 +350,15 @@ export default function AiChatScreen() {
     };
     
     return report;
+    } catch (error) {
+      console.error("Error in getProgressReport:", error);
+      return {
+        workouts: { total: 0, thisWeek: 0, lastWorkout: null },
+        weight: { current: 0, target: 0, progress: 0, trend: 0 },
+        activity: { steps: 0, goal: 10000, progress: 0 },
+        achievements: { total: 0, recent: 0 }
+      };
+    }
   };
 
   const generateProgressMessage = () => {
@@ -372,8 +405,9 @@ export default function AiChatScreen() {
 
   // Proactive suggestions based on data
   const getProactiveSuggestions = () => {
-    const report = getProgressReport();
-    const suggestions = [];
+    try {
+      const report = getProgressReport();
+      const suggestions = [];
     
     // Workout suggestions
     if (report.workouts.thisWeek < 3) {
@@ -403,6 +437,10 @@ export default function AiChatScreen() {
     }
     
     return suggestions;
+    } catch (error) {
+      console.error("Error in getProactiveSuggestions:", error);
+      return [];
+    }
   };
 
   // Achievement celebrations
