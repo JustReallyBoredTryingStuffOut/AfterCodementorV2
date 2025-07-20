@@ -10,7 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  ScrollView
+  ScrollView,
+  SafeAreaView
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { ArrowLeft, Send, Plus, Trash2, Target, Activity, TrendingUp, Zap } from "lucide-react-native";
@@ -23,10 +24,12 @@ import { useWorkoutStore } from "@/store/workoutStore";
 import { useGamificationStore } from "@/store/gamificationStore";
 import AIPersonalizationModal from "@/components/AIPersonalizationModal";
 import AIOnboardingScreen from "@/components/AIOnboardingScreen";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AiChatScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { 
     chats, 
     addChat: addChatToStore, 
@@ -4174,7 +4177,7 @@ GOAL CREATION EXAMPLES:
   const styles = getStyles(colors);
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{
           title: "AI Assistant",
@@ -4305,7 +4308,7 @@ GOAL CREATION EXAMPLES:
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-          style={styles.inputContainer}
+          style={[styles.inputContainer, { paddingBottom: insets.bottom + 16 }]}
         >
           <View style={styles.inputWrapper}>
             <TextInput
@@ -4373,7 +4376,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   messageList: {
     padding: 16,
-    paddingBottom: 16,
+    paddingBottom: 100, // Extra padding to account for input container
   },
   messageContainer: {
     marginBottom: 16,
@@ -4407,7 +4410,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: colors.text,
   },
   inputContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.card,
