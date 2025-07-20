@@ -938,7 +938,7 @@ export default function RootLayout() {
             <Text style={styles.healthKitFeatureText}>Automatic step counting and distance tracking</Text>
           </View>
           <View style={styles.healthKitFeature}>
-            <ActivityIcon size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Activity size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
             <Text style={styles.healthKitFeatureText}>Workout and activity data sync</Text>
           </View>
           <View style={styles.healthKitFeature}>
