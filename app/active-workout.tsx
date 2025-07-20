@@ -1577,7 +1577,11 @@ export default function ActiveWorkoutScreen() {
       <RestTimerModal
         visible={showRestModal}
         onClose={() => setShowRestModal(false)}
-        defaultTime={timerSettings.restTime}
+        duration={timerSettings.restTime || 60}
+        onComplete={() => {
+          setShowRestModal(false);
+          // Handle rest timer completion
+        }}
       />
       
       {/* Rating Modal */}

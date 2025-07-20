@@ -14,7 +14,7 @@ interface RestTimerModalProps {
 export default function RestTimerModal({ visible, onClose, duration, onComplete }: RestTimerModalProps) {
   const { colors } = useTheme();
   const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(duration);
+  const [timeLeft, setTimeLeft] = useState(duration || 60);
   const [isAppleWatchConnected, setIsAppleWatchConnected] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
   
@@ -24,7 +24,7 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
 
   useEffect(() => {
     if (visible) {
-      setTimeLeft(duration);
+      setTimeLeft(duration || 60);
       setIsRunning(false);
       setShowCountdown(false);
       checkAppleWatchConnection();
@@ -117,7 +117,7 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
 
   const resetTimer = () => {
     setIsRunning(false);
-    setTimeLeft(duration);
+    setTimeLeft(duration || 60);
     setShowCountdown(false);
     
     // Stop timer on Apple Watch if connected
@@ -185,13 +185,17 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
   };
 
   const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || seconds < 0) {
+      return '00:00';
+    }
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getProgress = () => {
-    return 1 - (timeLeft / duration);
+    const totalDuration = duration || 60;
+    return 1 - (timeLeft / totalDuration);
   };
 
   return (

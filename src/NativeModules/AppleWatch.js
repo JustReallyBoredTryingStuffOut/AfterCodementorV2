@@ -4,9 +4,13 @@ const { AppleWatchBridge } = NativeModules;
 
 class AppleWatchService {
   constructor() {
-    if (Platform.OS === 'ios' && AppleWatchBridge) {
+    this.isAvailable = Platform.OS === 'ios' && AppleWatchBridge;
+    
+    if (this.isAvailable) {
       this.eventEmitter = new NativeEventEmitter(AppleWatchBridge);
       this.setupEventListeners();
+    } else {
+      console.log('Apple Watch Bridge not available - using fallback mode');
     }
   }
 
@@ -31,8 +35,8 @@ class AppleWatchService {
   // MARK: - Rest Timer Methods (Existing)
 
   async startRestTimerOnWatch(seconds) {
-    if (Platform.OS !== 'ios' || !AppleWatchBridge) {
-      console.warn('Apple Watch not available on this platform');
+    if (!this.isAvailable) {
+      console.warn('Apple Watch Bridge not available - returning false');
       return false;
     }
 
@@ -264,8 +268,8 @@ class AppleWatchService {
   // MARK: - Connection Status Methods
 
   async isAppleWatchReachable() {
-    if (Platform.OS !== 'ios' || !AppleWatchBridge) {
-      console.log('Apple Watch not available:', 'Platform not supported or native module not available');
+    if (!this.isAvailable) {
+      console.log('Apple Watch Bridge not available - returning false');
       return false;
     }
 
@@ -279,8 +283,8 @@ class AppleWatchService {
   }
 
   async getAppleWatchStatus() {
-    if (Platform.OS !== 'ios' || !AppleWatchBridge) {
-      return { isReachable: false, isPaired: false, isInstalled: false };
+    if (!this.isAvailable) {
+      return 'Native Module Not Available';
     }
 
     try {
