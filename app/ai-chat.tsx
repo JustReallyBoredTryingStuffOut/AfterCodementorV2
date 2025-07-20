@@ -1021,35 +1021,55 @@ GOAL CREATION EXAMPLES:
   useEffect(() => {
     if (currentChat && currentChat.messages.length <= 2) {
       // This is a new chat, show proactive suggestions
-      const context = getUserContext();
-      const suggestions = [];
-      
-      if (context.targetWeight > 0) {
-        suggestions.push("Check my weight loss progress");
-      }
-      
-      if (context.stepCount < 5000) {
-        suggestions.push("I need motivation to move more");
-      }
-      
-      if (context.recentWorkouts.length === 0) {
-        suggestions.push("Suggest a workout for me");
-      }
-      
-      if (suggestions.length > 0) {
-        // Add proactive message after a delay
-        setTimeout(() => {
-          addMessageToChat(currentChat.id, {
-            role: "assistant",
-            content: `${generateProactiveMessage()}\n\nI can help you with:\n${suggestions.map(s => `• ${s}`).join('\n')}\n\nJust tap the quick actions or ask me anything!`
-          });
-        }, 2000);
+      try {
+        const context = getUserContext();
+        const suggestions = [];
+        
+        if (context.targetWeight > 0) {
+          suggestions.push("Check my weight loss progress");
+        }
+        
+        if (context.stepCount < 5000) {
+          suggestions.push("I need motivation to move more");
+        }
+        
+        if (context.recentWorkouts && context.recentWorkouts.length === 0) {
+          suggestions.push("Suggest a workout for me");
+        }
+        
+        if (suggestions.length > 0) {
+          // Add proactive message after a delay
+          setTimeout(() => {
+            addMessageToChat(currentChat.id, {
+              role: "assistant",
+              content: `${generateProactiveMessage()}\n\nI can help you with:\n${suggestions.map(s => `• ${s}`).join('\n')}\n\nJust tap the quick actions or ask me anything!`
+            });
+          }, 2000);
+        }
+      } catch (error) {
+        console.error("Error in proactive suggestions useEffect:", error);
       }
     }
   }, [currentChat]);
   
   const createNewChat = () => {
     const smartSystemPrompt = generateSmartSystemPrompt();
+    
+    // Get suggestions safely
+    const context = getUserContext();
+    const suggestions = [];
+    
+    if (context.targetWeight > 0) {
+      suggestions.push("Check my weight loss progress");
+    }
+    
+    if (context.stepCount < 5000) {
+      suggestions.push("I need motivation to move more");
+    }
+    
+    if (context.recentWorkouts && context.recentWorkouts.length === 0) {
+      suggestions.push("Suggest a workout for me");
+    }
     
     const newChat: AiChat = {
       id: Date.now().toString(),
@@ -1359,25 +1379,30 @@ GOAL CREATION EXAMPLES:
     
     // Handle general fitness goals
     if (lowerMessage.includes('fitness') || lowerMessage.includes('workout')) {
-      const suggestions = getGoalSuggestions();
-      const fitnessGoals = suggestions.filter(s => s.type === 'fitness');
-      
-      if (fitnessGoals.length > 0) {
-        const goal = fitnessGoals[0];
-        const newGoal = {
-          id: Date.now().toString(),
-          text: goal.text,
-          category: 'fitness',
-          timeframe: goal.timeframe,
-          targetValue: null,
-          timePeriod: goal.timeframe,
-          progress: 0,
-          completed: false,
-          createdAt: new Date().toISOString()
-        };
+      try {
+        const suggestions = getGoalSuggestions();
+        const fitnessGoals = suggestions.filter(s => s.type === 'fitness');
         
-        addGoal(newGoal);
-        return `I've created a fitness goal for you: ${goal.text}\n\nThis is based on your recent workout patterns. You can track your progress in the Goals section!`;
+        if (fitnessGoals.length > 0) {
+          const goal = fitnessGoals[0];
+          const newGoal = {
+            id: Date.now().toString(),
+            text: goal.text,
+            category: 'fitness',
+            timeframe: goal.timeframe,
+            targetValue: null,
+            timePeriod: goal.timeframe,
+            progress: 0,
+            completed: false,
+            createdAt: new Date().toISOString()
+          };
+          
+          addGoal(newGoal);
+          return `I've created a fitness goal for you: ${goal.text}\n\nThis is based on your recent workout patterns. You can track your progress in the Goals section!`;
+        }
+      } catch (error) {
+        console.error("Error in handleGoalCreation fitness goals:", error);
+        return "I'm having trouble creating a fitness goal right now. Please try again later.";
       }
     }
     
@@ -1505,21 +1530,26 @@ GOAL CREATION EXAMPLES:
     const lowerMessage = message.toLowerCase();
     
     if (lowerMessage.includes('progress') || lowerMessage.includes('report') || lowerMessage.includes('how am i doing')) {
-      const progressMessage = generateProgressMessage();
-      const suggestions = getProactiveSuggestions();
-      const celebrations = checkForAchievements();
-      
-      let response = progressMessage + "\n\n";
-      
-      if (celebrations.length > 0) {
-        response += "🎉 Celebrations:\n" + celebrations.join('\n') + "\n\n";
+      try {
+        const progressMessage = generateProgressMessage();
+        const suggestions = getProactiveSuggestions();
+        const celebrations = checkForAchievements();
+        
+        let response = progressMessage + "\n\n";
+        
+        if (celebrations && celebrations.length > 0) {
+          response += "🎉 Celebrations:\n" + celebrations.join('\n') + "\n\n";
+        }
+        
+        if (suggestions && suggestions.length > 0) {
+          response += "💡 Suggestions:\n" + suggestions.join('\n');
+        }
+        
+        return response;
+      } catch (error) {
+        console.error("Error in handleProgressRequest:", error);
+        return "I'm having trouble generating your progress report right now. Please try again later.";
       }
-      
-      if (suggestions.length > 0) {
-        response += "💡 Suggestions:\n" + suggestions.join('\n');
-      }
-      
-      return response;
     }
     
     return null; // Not a progress request
