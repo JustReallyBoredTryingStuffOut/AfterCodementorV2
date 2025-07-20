@@ -482,7 +482,8 @@ export default function RootLayout() {
   const handleAiRecommendationsToggle = (enabled: boolean) => {
     toggleWorkoutRecommendations(enabled);
     setAiRecommendationsExplained(true);
-    handleContinue();
+    // Move to next step manually since this step has custom buttons
+    setCurrentOnboardingStep(currentOnboardingStep + 1);
   };
   
   // Handle birth year input
