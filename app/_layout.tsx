@@ -8,12 +8,13 @@ import { useGamificationStore } from '@/store/gamificationStore';
 import { useMacroStore } from '@/store/macroStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useHealthStore } from '@/store/healthStore';
-import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft } from 'lucide-react-native';
+import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft, Apple } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import CustomDropdown from '@/components/CustomDropdown';
 import Button from '@/components/Button';
 import { LinearGradient } from 'expo-linear-gradient';
 import NotificationHandler from '@/components/NotificationHandler';
+import HealthKit from '@/src/NativeModules/HealthKit';
 
 // App name
 export const APP_NAME = "FitQuest";
@@ -49,6 +50,11 @@ export default function RootLayout() {
   
   // Health disclaimer acceptance
   const [healthDisclaimerAccepted, setHealthDisclaimerAccepted] = useState(false);
+  
+  // HealthKit permission state
+  const [healthKitPermissionRequested, setHealthKitPermissionRequested] = useState(false);
+  const [healthKitPermissionGranted, setHealthKitPermissionGranted] = useState(false);
+  const [healthKitPermissionLoading, setHealthKitPermissionLoading] = useState(false);
   
   // Form validation state
   const [nameError, setNameError] = useState("");
@@ -483,6 +489,81 @@ export default function RootLayout() {
     }
   };
   
+  // Request comprehensive HealthKit permissions
+  const requestHealthKitPermissions = async () => {
+    if (Platform.OS !== 'ios') {
+      return true; // Not applicable on non-iOS
+    }
+    
+    setHealthKitPermissionLoading(true);
+    
+    try {
+      // Check if HealthKit is available
+      const isAvailable = await HealthKit.isHealthDataAvailable();
+      
+      if (!isAvailable) {
+        Alert.alert(
+          "HealthKit Not Available",
+          "HealthKit is not available on this device. You can still use the app without health data integration.",
+          [{ text: "OK" }]
+        );
+        setHealthKitPermissionLoading(false);
+        return false;
+      }
+      
+      // Request authorization for all health data types
+      const authResult = await HealthKit.requestAuthorization([
+        'steps', 
+        'distance', 
+        'calories', 
+        'heartRate', 
+        'sleep', 
+        'workouts',
+        'weight',
+        'bodyMass',
+        'bodyFat',
+        'muscleMass'
+      ]);
+      
+      setHealthKitPermissionRequested(true);
+      setHealthKitPermissionGranted(authResult.authorized);
+      
+      if (authResult.authorized) {
+        // Initialize health store with the granted permissions
+        const healthStore = useHealthStore.getState();
+        if (healthStore && healthStore.initializeHealthKit) {
+          await healthStore.initializeHealthKit();
+        }
+        
+        Alert.alert(
+          "Health Data Connected",
+          "Your app is now connected to Apple Health. Your health data will be synced automatically.",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Health Data Access Denied",
+          "You can still use the app, but some features like automatic step counting and weight tracking will be limited. You can enable health data access later in Settings.",
+          [{ text: "OK" }]
+        );
+      }
+      
+      setHealthKitPermissionLoading(false);
+      return authResult.authorized;
+    } catch (error: any) {
+      console.error('Error requesting HealthKit permissions:', error);
+      setHealthKitPermissionLoading(false);
+      
+      Alert.alert(
+        "Health Data Error",
+        "There was an error setting up health data access. You can still use the app and enable health data later.",
+        [{ text: "OK" }]
+      );
+      
+      return false;
+    }
+  };
+  
   // Onboarding steps
   const onboardingSteps = [
     {
@@ -844,6 +925,84 @@ export default function RootLayout() {
       action: () => handleContinue(),
       actionText: "Continue",
       showSkip: false, // Don't allow skipping health disclaimer
+    },
+    // Comprehensive HealthKit Permissions Step
+    {
+      title: "Connect to Apple Health",
+      description: "Connect to Apple Health to automatically sync your steps, workouts, weight, and other health data for a complete fitness experience.",
+      icon: <Apple size={80} color={colors.primary} />,
+      content: (
+        <View style={styles.healthKitContainer}>
+          <View style={styles.healthKitFeature}>
+            <Heart size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Text style={styles.healthKitFeatureText}>Automatic step counting and distance tracking</Text>
+          </View>
+          <View style={styles.healthKitFeature}>
+            <ActivityIcon size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Text style={styles.healthKitFeatureText}>Workout and activity data sync</Text>
+          </View>
+          <View style={styles.healthKitFeature}>
+            <Weight size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Text style={styles.healthKitFeatureText}>Weight and body composition tracking</Text>
+          </View>
+          <View style={styles.healthKitFeature}>
+            <Moon size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Text style={styles.healthKitFeatureText}>Sleep and recovery insights</Text>
+          </View>
+          <View style={styles.healthKitFeature}>
+            <Dumbbell size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
+            <Text style={styles.healthKitFeatureText}>Calories burned and heart rate data</Text>
+          </View>
+          
+          {healthKitPermissionRequested && (
+            <View style={[
+              styles.healthKitStatus,
+              healthKitPermissionGranted ? styles.healthKitStatusSuccess : styles.healthKitStatusDenied
+            ]}>
+              <Text style={styles.healthKitStatusText}>
+                {healthKitPermissionGranted 
+                  ? "✓ Health data access granted" 
+                  : "⚠ Health data access denied"
+                }
+              </Text>
+            </View>
+          )}
+          
+          <Text style={styles.healthKitPrivacyNote}>
+            Your health data is stored locally on your device and synced securely with Apple Health. You can manage permissions anytime in Settings.
+          </Text>
+        </View>
+      ),
+      action: null,
+      actionText: "",
+      showSkip: true, // Allow skipping health permissions
+      customButtons: (
+        <View style={styles.choiceButtons}>
+          <TouchableOpacity 
+            style={[styles.choiceButton, styles.noButton]} 
+            onPress={() => handleContinue()}
+            disabled={healthKitPermissionLoading}
+          >
+            <Text style={styles.choiceButtonText}>Skip for Now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.choiceButton, styles.yesButton]} 
+            onPress={async () => {
+              const granted = await requestHealthKitPermissions();
+              if (granted || healthKitPermissionRequested) {
+                handleContinue();
+              }
+            }}
+            disabled={healthKitPermissionLoading}
+          >
+            {healthKitPermissionLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.choiceButtonText}>Connect Health Data</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      ),
     },
   ];
   
@@ -1356,5 +1515,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.10,
     shadowRadius: 4,
+  },
+  // HealthKit permission styles
+  healthKitContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  healthKitFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 12,
+    borderRadius: 8,
+  },
+  healthKitFeatureIcon: {
+    marginRight: 12,
+  },
+  healthKitFeatureText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  healthKitStatus: {
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 16,
+    alignItems: 'center',
+  },
+  healthKitStatusSuccess: {
+    backgroundColor: 'rgba(52, 199, 89, 0.2)',
+    borderWidth: 1,
+    borderColor: '#34C759',
+  },
+  healthKitStatusDenied: {
+    backgroundColor: 'rgba(255, 149, 0, 0.2)',
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  healthKitStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  healthKitPrivacyNote: {
+    fontSize: 12,
+    color: '#AAAAAA',
+    textAlign: 'center',
+    marginTop: 16,
+    fontStyle: 'italic',
   },
 });
