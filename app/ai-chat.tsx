@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { ArrowLeft, Send, Plus, Trash2, Target, Activity, TrendingUp, Zap } from "lucide-react-native";
-import { colors } from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 import { useAiStore, AiChat, ChatMessage } from "@/store/aiStore";
 import { Exercise } from "@/types";
 import { useMacroStore } from "@/store/macroStore";
@@ -26,6 +26,7 @@ import AIOnboardingScreen from "@/components/AIOnboardingScreen";
 
 export default function AiChatScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const { 
     chats, 
     addChat: addChatToStore, 
@@ -4170,6 +4171,8 @@ GOAL CREATION EXAMPLES:
     );
   };
   
+  const styles = getStyles(colors);
+  
   return (
     <View style={styles.container}>
       <Stack.Screen 
@@ -4337,7 +4340,7 @@ GOAL CREATION EXAMPLES:
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

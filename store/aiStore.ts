@@ -146,8 +146,8 @@ interface AiState {
   toggleMoodBasedResponses: (enabled: boolean) => void;
   getMoodBasedRecommendation: () => string;
   generatePersonalizedGreeting: () => string;
-        setOnboardingComplete: (completed: boolean) => void;
-      resetOnboarding: () => void;
+  setOnboardingComplete: (completed: boolean) => void;
+  resetOnboarding: () => void;
 }
 
 // Helper function to clean markdown formatting from text
