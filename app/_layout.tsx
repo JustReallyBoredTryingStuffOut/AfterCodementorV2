@@ -8,7 +8,7 @@ import { useGamificationStore } from '@/store/gamificationStore';
 import { useMacroStore } from '@/store/macroStore';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { useHealthStore } from '@/store/healthStore';
-import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft, Apple } from 'lucide-react-native';
+import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft, Apple, Moon, Dumbbell } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import CustomDropdown from '@/components/CustomDropdown';
 import Button from '@/components/Button';
@@ -359,7 +359,7 @@ export default function RootLayout() {
   };
   
   // Handle continue button press
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // If we're on the name step, validate name
     if (currentOnboardingStep === 4) {
       if (!validateName(name)) {
@@ -390,7 +390,7 @@ export default function RootLayout() {
     }
     
     // If we're on the health disclaimer step, check if it's accepted
-    if (currentOnboardingStep === 8) {
+    if (currentOnboardingStep === 7) {
       if (!healthDisclaimerAccepted) {
         Alert.alert(
           "Health Disclaimer Required",
@@ -406,12 +406,12 @@ export default function RootLayout() {
     } else {
       // We're on the last step
       // Complete onboarding and show loading screen
-      completeOnboarding();
+      await completeOnboarding();
     }
   };
   
   // Function to complete onboarding and transition to loading screen
-  const completeOnboarding = () => {
+  const completeOnboarding = async () => {
     // Save user profile
     const age = birthYear ? new Date().getFullYear() - parseInt(birthYear) : userProfile.age;
     
@@ -438,10 +438,18 @@ export default function RootLayout() {
     if (isFirstLaunch) {
       setShowLoadingScreen(true);
     }
+    
+    // Request HealthKit permissions after onboarding is complete
+    if (Platform.OS === 'ios') {
+      // Small delay to ensure onboarding UI is cleared
+      setTimeout(async () => {
+        await requestHealthKitPermissions();
+      }, 1000);
+    }
   };
   
   // Handle skip button press
-  const handleSkip = () => {
+  const handleSkip = async () => {
     // If we're in the user details section, just complete onboarding
     if (currentOnboardingStep >= 4) {
       // For body metrics step, we don't allow skipping
@@ -455,7 +463,7 @@ export default function RootLayout() {
       }
       
       // Complete onboarding
-      completeOnboarding();
+      await completeOnboarding();
       return;
     }
     
@@ -925,84 +933,6 @@ export default function RootLayout() {
       action: () => handleContinue(),
       actionText: "Continue",
       showSkip: false, // Don't allow skipping health disclaimer
-    },
-    // Comprehensive HealthKit Permissions Step
-    {
-      title: "Connect to Apple Health",
-      description: "Connect to Apple Health to automatically sync your steps, workouts, weight, and other health data for a complete fitness experience.",
-      icon: <Apple size={80} color={colors.primary} />,
-      content: (
-        <View style={styles.healthKitContainer}>
-          <View style={styles.healthKitFeature}>
-            <Heart size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
-            <Text style={styles.healthKitFeatureText}>Automatic step counting and distance tracking</Text>
-          </View>
-          <View style={styles.healthKitFeature}>
-            <Activity size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
-            <Text style={styles.healthKitFeatureText}>Workout and activity data sync</Text>
-          </View>
-          <View style={styles.healthKitFeature}>
-            <Weight size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
-            <Text style={styles.healthKitFeatureText}>Weight and body composition tracking</Text>
-          </View>
-          <View style={styles.healthKitFeature}>
-            <Moon size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
-            <Text style={styles.healthKitFeatureText}>Sleep and recovery insights</Text>
-          </View>
-          <View style={styles.healthKitFeature}>
-            <Dumbbell size={24} color={colors.primary} style={styles.healthKitFeatureIcon} />
-            <Text style={styles.healthKitFeatureText}>Calories burned and heart rate data</Text>
-          </View>
-          
-          {healthKitPermissionRequested && (
-            <View style={[
-              styles.healthKitStatus,
-              healthKitPermissionGranted ? styles.healthKitStatusSuccess : styles.healthKitStatusDenied
-            ]}>
-              <Text style={styles.healthKitStatusText}>
-                {healthKitPermissionGranted 
-                  ? "✓ Health data access granted" 
-                  : "⚠ Health data access denied"
-                }
-              </Text>
-            </View>
-          )}
-          
-          <Text style={styles.healthKitPrivacyNote}>
-            Your health data is stored locally on your device and synced securely with Apple Health. You can manage permissions anytime in Settings.
-          </Text>
-        </View>
-      ),
-      action: null,
-      actionText: "",
-      showSkip: true, // Allow skipping health permissions
-      customButtons: (
-        <View style={styles.choiceButtons}>
-          <TouchableOpacity 
-            style={[styles.choiceButton, styles.noButton]} 
-            onPress={() => handleContinue()}
-            disabled={healthKitPermissionLoading}
-          >
-            <Text style={styles.choiceButtonText}>Skip for Now</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.choiceButton, styles.yesButton]} 
-            onPress={async () => {
-              const granted = await requestHealthKitPermissions();
-              if (granted || healthKitPermissionRequested) {
-                handleContinue();
-              }
-            }}
-            disabled={healthKitPermissionLoading}
-          >
-            {healthKitPermissionLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.choiceButtonText}>Connect Health Data</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      ),
     },
   ];
   
