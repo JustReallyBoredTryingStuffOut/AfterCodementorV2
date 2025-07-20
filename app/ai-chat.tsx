@@ -30,25 +30,72 @@ export default function AiChatScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  
+  // Add error handling for store initialization
+  const [storeError, setStoreError] = useState<string | null>(null);
+  
+  let aiStore;
+  let macroStore;
+  let healthStore;
+  let workoutStore;
+  let gamificationStore;
+  
+  try {
+    aiStore = useAiStore();
+    macroStore = useMacroStore();
+    healthStore = useHealthStore();
+    workoutStore = useWorkoutStore();
+    gamificationStore = useGamificationStore();
+  } catch (error) {
+    console.error("Error initializing stores:", error);
+    setStoreError(error instanceof Error ? error.message : "Unknown store error");
+  }
+  
+  // If there's a store error, show a simple error screen
+  if (storeError) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.text }]}>
+            Unable to load AI Chat
+          </Text>
+          <Text style={[styles.errorSubtext, { color: colors.textSecondary }]}>
+            {storeError}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={() => setStoreError(null)}
+          >
+            <Text style={[styles.retryButtonText, { color: colors.white }]}>
+              Retry
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Destructure store values with safe defaults
   const { 
-    chats, 
+    chats = [], 
     addChat: addChatToStore, 
     deleteChat, 
     addMessageToChat, 
     addGoal,
-    aiPersonality,
-    userProfile,
+    aiPersonality = { name: "Coach Alex", personality: 'motivational', expertise: 'general', communicationStyle: 'encouraging' },
+    userProfile = { preferredName: "", fitnessGoals: [], experienceLevel: 'beginner', preferredWorkoutTime: 'evening', motivationStyle: 'health', favoriteExercises: [], dislikedExercises: [], moodHistory: [] },
     generatePersonalizedGreeting,
     getMoodBasedRecommendation,
     addToConversationMemory,
-    hasCompletedOnboarding,
+    hasCompletedOnboarding = false,
     setOnboardingComplete,
     resetOnboarding
-  } = useAiStore();
-  const { userProfile: macroUserProfile, macroGoals } = useMacroStore();
-  const { weightLogs, stepCount, calculateWeightProgress } = useHealthStore();
-  const { workoutLogs, scheduledWorkouts, getRecommendedWorkouts, addWorkout, exercises, scheduleWorkout } = useWorkoutStore();
-  const { achievements, level, experience } = useGamificationStore();
+  } = aiStore || {};
+  
+  const { userProfile: macroUserProfile = { preferredName: "", fitnessGoals: [], experienceLevel: 'beginner', preferredWorkoutTime: 'evening', motivationStyle: 'health', favoriteExercises: [], dislikedExercises: [], moodHistory: [] }, macroGoals = [] } = macroStore || {};
+  const { weightLogs = [], stepCount = 0, calculateWeightProgress } = healthStore || {};
+  const { workoutLogs = [], scheduledWorkouts = [], getRecommendedWorkouts, addWorkout, exercises = [], scheduleWorkout } = workoutStore || {};
+  const { achievements = [], level = 1, experience = 0 } = gamificationStore || {};
   
   const [currentChat, setCurrentChat] = useState<AiChat | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -4195,19 +4242,27 @@ GOAL CREATION EXAMPLES:
               <TouchableOpacity 
                 onPress={() => setShowPersonalization(true)}
                 onLongPress={() => {
-                  resetOnboarding();
-                  setShowOnboarding(true);
+                  try {
+                    resetOnboarding?.();
+                    setShowOnboarding(true);
+                  } catch (error) {
+                    console.error("Error resetting onboarding:", error);
+                  }
                 }}
                 style={styles.personalizationButton}
               >
                 <Text style={styles.personalizationButtonText}>
-                  {aiPersonality.name}
+                  {aiPersonality?.name || "Coach Alex"}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={() => {
-                  resetOnboarding();
-                  setShowOnboarding(true);
+                  try {
+                    resetOnboarding?.();
+                    setShowOnboarding(true);
+                  } catch (error) {
+                    console.error("Error resetting onboarding:", error);
+                  }
                 }}
                 style={styles.resetButton}
               >
@@ -4287,12 +4342,22 @@ GOAL CREATION EXAMPLES:
           <AIOnboardingScreen
             visible={showOnboarding}
             onComplete={() => {
-              setOnboardingComplete(true);
-              setShowOnboarding(false);
+              try {
+                setOnboardingComplete?.(true);
+                setShowOnboarding(false);
+              } catch (error) {
+                console.error("Error completing onboarding:", error);
+                setShowOnboarding(false);
+              }
             }}
             onSkip={() => {
-              setOnboardingComplete(true);
-              setShowOnboarding(false);
+              try {
+                setOnboardingComplete?.(true);
+                setShowOnboarding(false);
+              } catch (error) {
+                console.error("Error skipping onboarding:", error);
+                setShowOnboarding(false);
+              }
             }}
           />
         </View>
@@ -4347,6 +4412,32 @@ const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   fullScreenModal: {
     position: 'absolute',
