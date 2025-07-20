@@ -1,346 +1,302 @@
-import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  Switch,
-  Platform,
-  Vibration,
-  TextInput,
-  ScrollView
-} from "react-native";
-import { X, Clock, Volume2, VolumeX, Dumbbell } from "lucide-react-native";
-import { colors } from "@/constants/colors";
-import { useWorkoutStore } from "@/store/workoutStore";
-import Button from "./Button";
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated, Alert, Platform } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
+import { X, Play, Pause, RotateCcw, Watch } from 'lucide-react-native';
+import AppleWatch from '@/src/NativeModules/AppleWatch';
 
-type RestTimerModalProps = {
+interface RestTimerModalProps {
   visible: boolean;
   onClose: () => void;
-  defaultTime?: number;
-};
+  duration: number; // in seconds
+  onComplete?: () => void;
+}
 
-const presetTimes = [30, 60, 90, 120, 180, 300];
-const presetSetCounts = [3, 4, 6];
-const presetExerciseTimes = [30, 60, 120, 300, 600];
+export default function RestTimerModal({ visible, onClose, duration, onComplete }: RestTimerModalProps) {
+  const { colors } = useTheme();
+  const [isRunning, setIsRunning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [isAppleWatchConnected, setIsAppleWatchConnected] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
+  
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const countdownAnim = useRef(new Animated.Value(1)).current;
 
-export default function RestTimerModal({ 
-  visible, 
-  onClose,
-  defaultTime = 60
-}: RestTimerModalProps) {
-  const { 
-    startRestTimer, 
-    activeTimer, 
-    timerSettings,
-    setTimerSettings
-  } = useWorkoutStore();
-  
-  const [selectedTime, setSelectedTime] = useState(defaultTime);
-  const [selectedExerciseTime, setSelectedExerciseTime] = useState(timerSettings.exerciseTime || 0);
-  const [voiceEnabled, setVoiceEnabled] = useState(timerSettings.voicePrompts);
-  const [autoStart, setAutoStart] = useState(timerSettings.autoStartRest);
-  const [countdownBeep, setCountdownBeep] = useState(timerSettings.countdownBeep);
-  const [selectedSetCount, setSelectedSetCount] = useState(timerSettings.defaultSetCount || 3);
-  const [customSetCount, setCustomSetCount] = useState("");
-  const [customExerciseTime, setCustomExerciseTime] = useState("");
-  
-  const insets = useSafeAreaInsets ? useSafeAreaInsets() : { top: 44 };
-  
-  // Update selected time when defaultTime changes
   useEffect(() => {
-    setSelectedTime(defaultTime);
-  }, [defaultTime]);
-  
-  // Update state when timer settings change
-  useEffect(() => {
-    setVoiceEnabled(timerSettings.voicePrompts);
-    setAutoStart(timerSettings.autoStartRest);
-    setCountdownBeep(timerSettings.countdownBeep);
-    setSelectedSetCount(timerSettings.defaultSetCount || 3);
-    setSelectedExerciseTime(timerSettings.exerciseTime || 0);
-  }, [timerSettings]);
-  
-  const handleApplySettings = () => {
-      setTimerSettings({
-        ...timerSettings,
-        voicePrompts: voiceEnabled,
-        autoStartRest: autoStart,
-        countdownBeep: countdownBeep,
-      restTime: selectedTime,
-      defaultSetCount: selectedSetCount,
-      exerciseTime: selectedExerciseTime,
-      });
-    if (Platform.OS !== 'web') {
-      Vibration.vibrate(100);
+    if (visible) {
+      setTimeLeft(duration);
+      setIsRunning(false);
+      setShowCountdown(false);
+      checkAppleWatchConnection();
     }
-    onClose();
+  }, [visible, duration]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prevTime) => {
+          const newTime = prevTime - 1;
+          
+          // Check if we should show countdown (last 10 seconds)
+          if (newTime <= 10 && newTime > 0 && !showCountdown) {
+            setShowCountdown(true);
+            animateCountdown();
+          }
+          
+          // Check if timer completed
+          if (newTime <= 0) {
+            handleTimerComplete();
+            return 0;
+          }
+          
+          return newTime;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRunning, timeLeft, showCountdown]);
+
+  const checkAppleWatchConnection = async () => {
+    if (Platform.OS === 'ios') {
+      try {
+        const isReachable = await AppleWatch.isAppleWatchReachable();
+        setIsAppleWatchConnected(isReachable);
+      } catch (error) {
+        console.error('Error checking Apple Watch connection:', error);
+        setIsAppleWatchConnected(false);
+      }
+    }
   };
-  
+
+  const startTimer = async () => {
+    setIsRunning(true);
+    
+    // Start timer on Apple Watch if connected
+    if (Platform.OS === 'ios' && isAppleWatchConnected) {
+      try {
+        await AppleWatch.startRestTimerOnWatch(timeLeft);
+      } catch (error) {
+        console.error('Error starting timer on Apple Watch:', error);
+      }
+    }
+    
+    // Animate the start
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const pauseTimer = async () => {
+    setIsRunning(false);
+    
+    // Stop timer on Apple Watch if connected
+    if (Platform.OS === 'ios' && isAppleWatchConnected) {
+      try {
+        await AppleWatch.stopRestTimerOnWatch();
+      } catch (error) {
+        console.error('Error stopping timer on Apple Watch:', error);
+      }
+    }
+  };
+
+  const resetTimer = () => {
+    setIsRunning(false);
+    setTimeLeft(duration);
+    setShowCountdown(false);
+    
+    // Stop timer on Apple Watch if connected
+    if (Platform.OS === 'ios' && isAppleWatchConnected) {
+      try {
+        AppleWatch.stopRestTimerOnWatch();
+      } catch (error) {
+        console.error('Error stopping timer on Apple Watch:', error);
+      }
+    }
+  };
+
+  const handleTimerComplete = async () => {
+    setIsRunning(false);
+    setShowCountdown(false);
+    
+    // Stop timer on Apple Watch if connected
+    if (Platform.OS === 'ios' && isAppleWatchConnected) {
+      try {
+        await AppleWatch.stopRestTimerOnWatch();
+        await AppleWatch.announceRestComplete();
+      } catch (error) {
+        console.error('Error completing timer on Apple Watch:', error);
+      }
+    }
+    
+    // Animate completion
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.2,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    // Call completion callback
+    if (onComplete) {
+      onComplete();
+    }
+    
+    // Auto-close after 2 seconds
+    setTimeout(() => {
+      onClose();
+    }, 2000);
+  };
+
+  const animateCountdown = () => {
+    Animated.sequence([
+      Animated.timing(countdownAnim, {
+        toValue: 1.5,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(countdownAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getProgress = () => {
+    return 1 - (timeLeft / duration);
+  };
+
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="fade"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <SafeAreaView style={[styles.container, { paddingTop: insets.top + 16, paddingHorizontal: 18, width: '92%', alignSelf: 'center' }]}> 
-              <View style={[styles.header, { marginTop: 8, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}> 
-                <Text style={[styles.title, { flex: 1, textAlign: 'left', fontSize: 20, fontWeight: '700', marginLeft: 8 }]}>Workout Timer Settings</Text>
-                <TouchableOpacity onPress={onClose} style={[styles.closeButton, { position: 'absolute', right: 8, top: 0, padding: 8 }]}> 
-                  <X size={22} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <View style={{ height: 8 }} />
-                <Text style={[styles.sectionTitle, { textAlign: 'left', fontSize: 15, marginBottom: 10, marginLeft: 4 }]}>Number of sets per exercise</Text>
-                <View style={[styles.timeOptions, { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start', marginLeft: 4, marginBottom: 8 }]}>
-                  {presetSetCounts.map((count) => (
-                    <TouchableOpacity
-                      key={count}
-                      style={[
-                        styles.timeOption,
-                        selectedSetCount === count && styles.selectedTimeOption,
-                      ]}
-                      onPress={() => {
-                        setSelectedSetCount(count);
-                        setCustomSetCount("");
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.timeText,
-                          selectedSetCount === count && styles.selectedTimeText,
-                        ]}
-                      >
-                        {count}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    style={[
-                      styles.timeOption,
-                      typeof selectedSetCount === 'number' && !presetSetCounts.includes(selectedSetCount) && styles.selectedTimeOption,
-                      { paddingHorizontal: 0, justifyContent: 'center', alignItems: 'center' }
-                    ]}
-                    onPress={() => {
-                      // Focus input if possible (not needed for now)
-                    }}
-                    activeOpacity={1}
-                  >
-                    <TextInput
-                      style={[
-                        styles.timeText,
-                        { width: 28, textAlign: 'center', borderBottomWidth: 0, backgroundColor: 'transparent', paddingVertical: 0 },
-                        typeof selectedSetCount === 'number' && !presetSetCounts.includes(selectedSetCount) && styles.selectedTimeText
-                      ]}
-                      keyboardType="numeric"
-                      value={customSetCount}
-                      onChangeText={text => {
-                        setCustomSetCount(text);
-                        const num = parseInt(text);
-                        if (!isNaN(num) && num > 0) setSelectedSetCount(num);
-                      }}
-                      placeholder="#"
-                      maxLength={2}
-                      placeholderTextColor={colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-                
-                <Text style={[styles.sectionTitle, { textAlign: 'left', fontSize: 15, marginTop: 24, marginBottom: 10, marginLeft: 4 }]}>Rest timer between exercises</Text>
-                <View style={[styles.timeOptions, { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start', marginLeft: 4, marginBottom: 8 }]}>
-                  {presetExerciseTimes.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[
-                        styles.timeOption,
-                        selectedExerciseTime === time && styles.selectedTimeOption,
-                      ]}
-                      onPress={() => {
-                        setSelectedExerciseTime(time);
-                        setCustomExerciseTime("");
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.timeText,
-                          selectedExerciseTime === time && styles.selectedTimeText,
-                        ]}
-                      >
-                        {time >= 60 ? `${time / 60}m` : `${time}s`}
+      <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+        <Animated.View 
+          style={[
+            styles.container, 
+            { 
+              backgroundColor: colors.cardBackground,
+              borderColor: colors.border,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Rest Timer
+            </Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Apple Watch Status */}
+          {Platform.OS === 'ios' && (
+            <View style={styles.watchStatus}>
+              <Watch size={16} color={isAppleWatchConnected ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.watchStatusText, { color: colors.textSecondary }]}>
+                {isAppleWatchConnected ? 'Apple Watch Connected' : 'Apple Watch Not Connected'}
+              </Text>
+            </View>
+          )}
+
+          {/* Timer Display */}
+          <View style={styles.timerContainer}>
+            {showCountdown ? (
+              <Animated.View style={{ transform: [{ scale: countdownAnim }] }}>
+                <Text style={[styles.countdownText, { color: colors.primary }]}>
+                  {timeLeft}
                 </Text>
-                    </TouchableOpacity>
-                  ))}
-                  {/* Custom input as a button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.timeOption,
-                      typeof selectedExerciseTime === 'number' && !presetExerciseTimes.includes(selectedExerciseTime) && styles.selectedTimeOption,
-                      { paddingHorizontal: 0, justifyContent: 'center', alignItems: 'center' }
-                    ]}
-                    onPress={() => {}}
-                    activeOpacity={1}
-                  >
-                    <TextInput
-                      style={[
-                        styles.timeText,
-                        { width: 28, textAlign: 'center', borderBottomWidth: 0, backgroundColor: 'transparent', paddingVertical: 0 },
-                        typeof selectedExerciseTime === 'number' && !presetExerciseTimes.includes(selectedExerciseTime) && styles.selectedTimeText
-                      ]}
-                      keyboardType="numeric"
-                      value={customExerciseTime}
-                      onChangeText={text => {
-                        setCustomExerciseTime(text);
-                        const num = parseInt(text);
-                        if (!isNaN(num) && num > 0) setSelectedExerciseTime(num);
-                      }}
-                      placeholder="#"
-                      maxLength={3}
-                      placeholderTextColor={colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </View>
-                
-                <Text style={[styles.sectionTitle, { textAlign: 'left', fontSize: 15, marginTop: 24, marginBottom: 10, marginLeft: 4 }]}>Rest timer between sets</Text>
-                <View style={[styles.timeOptions, { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start', marginLeft: 4, marginBottom: 8 }]}>
-                  {presetTimes.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[
-                        styles.timeOption,
-                        selectedTime === time && styles.selectedTimeOption,
-                      ]}
-                      onPress={() => setSelectedTime(time)}
-                    >
-                      <Text
-                        style={[
-                          styles.timeText,
-                          selectedTime === time && styles.selectedTimeText,
-                        ]}
-                      >
-                        {time >= 60 ? `${time / 60}m` : `${time}s`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                
-                <View style={styles.settingsContainer}>
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingLabelContainer}>
-                      <Volume2 size={20} color={colors.text} style={styles.settingIcon} />
-                      <Text style={styles.settingLabel}>Voice prompts</Text>
-                    </View>
-                    
-                    {Platform.OS === 'web' ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.toggleButton,
-                          voiceEnabled && styles.toggleButtonActive
-                        ]}
-                        onPress={() => setVoiceEnabled(!voiceEnabled)}
-                      >
-                        <View style={[
-                          styles.toggleKnob,
-                          voiceEnabled && styles.toggleKnobActive
-                        ]} />
-                      </TouchableOpacity>
-                    ) : (
-                      <Switch
-                        value={voiceEnabled}
-                        onValueChange={setVoiceEnabled}
-                        trackColor={{ false: colors.border, true: `${colors.primary}80` }}
-                        thumbColor={voiceEnabled ? colors.white : colors.background}
-                      />
-                    )}
-                  </View>
-                  
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingLabelContainer}>
-                      <Clock size={20} color={colors.text} style={styles.settingIcon} />
-                      <Text style={styles.settingLabel}>Auto-start after set</Text>
-                    </View>
-                    
-                    {Platform.OS === 'web' ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.toggleButton,
-                          autoStart && styles.toggleButtonActive
-                        ]}
-                        onPress={() => setAutoStart(!autoStart)}
-                      >
-                        <View style={[
-                          styles.toggleKnob,
-                          autoStart && styles.toggleKnobActive
-                        ]} />
-                      </TouchableOpacity>
-                    ) : (
-                      <Switch
-                        value={autoStart}
-                        onValueChange={setAutoStart}
-                        trackColor={{ false: colors.border, true: `${colors.primary}80` }}
-                        thumbColor={autoStart ? colors.white : colors.background}
-                      />
-                    )}
-                  </View>
-                  
-                  <View style={styles.settingRow}>
-                    <View style={styles.settingLabelContainer}>
-                      <Volume2 size={20} color={colors.text} style={styles.settingIcon} />
-                      <Text style={styles.settingLabel}>Countdown beep</Text>
-                    </View>
-                    
-                    {Platform.OS === 'web' ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.toggleButton,
-                          countdownBeep && styles.toggleButtonActive
-                        ]}
-                        onPress={() => setCountdownBeep(!countdownBeep)}
-                      >
-                        <View style={[
-                          styles.toggleKnob,
-                          countdownBeep && styles.toggleKnobActive
-                        ]} />
-                      </TouchableOpacity>
-                    ) : (
-                      <Switch
-                        value={countdownBeep}
-                        onValueChange={setCountdownBeep}
-                        trackColor={{ false: colors.border, true: `${colors.primary}80` }}
-                        thumbColor={countdownBeep ? colors.white : colors.background}
-                      />
-                    )}
-                  </View>
-                </View>
-                
-                <View style={styles.buttonContainer}>
-                  <Button
-                    title="Apply Settings"
-                    onPress={handleApplySettings}
-                    style={styles.startButton}
-                  />
-                  
-                  <Button
-                    title="Close"
-                    onPress={onClose}
-                    variant="outline"
-                    style={styles.closeButton}
-                  />
-                </View>
-                <View style={{ height: 8 }} />
-              </ScrollView>
-            </SafeAreaView>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+              </Animated.View>
+            ) : (
+              <Text style={[styles.timerText, { color: colors.text }]}>
+                {formatTime(timeLeft)}
+              </Text>
+            )}
+          </View>
+
+          {/* Progress Ring */}
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressRing, { borderColor: colors.border }]}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { 
+                    backgroundColor: colors.primary,
+                    width: `${getProgress() * 100}%`
+                  }
+                ]} 
+              />
+            </View>
+          </View>
+
+          {/* Controls */}
+          <View style={styles.controls}>
+            <TouchableOpacity
+              style={[styles.controlButton, { borderColor: colors.border }]}
+              onPress={resetTimer}
+            >
+              <RotateCcw size={20} color={colors.text} />
+              <Text style={[styles.controlButtonText, { color: colors.text }]}>
+                Reset
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.playButton, { backgroundColor: colors.primary }]}
+              onPress={isRunning ? pauseTimer : startTimer}
+            >
+              {isRunning ? (
+                <Pause size={24} color="white" />
+              ) : (
+                <Play size={24} color="white" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.controlButton, { borderColor: colors.border }]}
+              onPress={onClose}
+            >
+              <X size={20} color={colors.text} />
+              <Text style={[styles.controlButtonText, { color: colors.text }]}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -348,148 +304,106 @@ export default function RestTimerModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   container: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    width: "92%",
-    maxWidth: 370,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-    alignSelf: 'center',
-    paddingHorizontal: 0,
+    width: '100%',
+    maxWidth: 350,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text,
+    fontSize: 24,
+    fontWeight: '700',
   },
   closeButton: {
     padding: 4,
   },
-  scrollContent: {
-    paddingBottom: 32,
-    paddingHorizontal: 0,
-  },
-  content: {
-    padding: 20,
-    alignItems: "center",
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.timerBackground,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  timeOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginVertical: 4,
-  },
-  timeOption: {
-    backgroundColor: colors.background,
-    borderRadius: 20,
+  watchStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    margin: 5,
-    minWidth: 38,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  watchStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  timerText: {
+    fontSize: 48,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  countdownText: {
+    fontSize: 72,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  progressContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  progressRing: {
+    width: 200,
+    height: 8,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.border,
+    overflow: 'hidden',
   },
-  selectedTimeOption: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
   },
-  timeText: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: "500",
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  selectedTimeText: {
-    color: colors.white,
-    fontWeight: "700",
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  settingsContainer: {
-    width: "100%",
-    marginBottom: 24,
-  },
-  settingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  settingLabelContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  settingIcon: {
-    marginRight: 8,
-  },
-  settingLabel: {
+  controlButtonText: {
     fontSize: 16,
-    color: colors.text,
-  },
-  toggleButton: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.border,
-    padding: 2,
-  },
-  toggleButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  toggleKnob: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-  },
-  toggleKnobActive: {
-    transform: [{ translateX: 20 }],
-  },
-  buttonContainer: {
-    width: "100%",
-    gap: 12,
-  },
-  startButton: {
-    width: "100%",
-  },
-  closeButton: {
-    width: "100%",
-  },
-  sectionTitle: {
     fontWeight: '600',
-    color: colors.text,
-    fontSize: 15,
-    marginBottom: 0,
+  },
+  playButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });

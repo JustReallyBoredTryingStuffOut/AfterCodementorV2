@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, NativeModules } from "react-native";
-import { useRouter } from "expo-router";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
+import { Stack, useRouter } from "expo-router";
 import { 
   Activity, 
   TrendingUp, 
-  Watch, 
-  Award, 
-  BarChart2, 
+  Target, 
+  Heart, 
+  Droplets, 
+  Scale, 
+  Smartphone, 
+  Zap,
+  RefreshCw,
+  Watch,
+  Award,
+  BarChart2,
   ChevronRight,
   Camera,
   MapPin,
   Footprints,
   ArrowLeft,
-  RefreshCw,
-  Zap,
   AlertTriangle,
-  Target,
   BarChart3
 } from "lucide-react-native";
 import { useHealthStore } from "@/store/healthStore";
@@ -28,9 +32,9 @@ import WaterTracker from "@/components/WaterTracker";
 import ActivityMap from "@/components/ActivityMap";
 import Button from "@/components/Button";
 import HealthKitService from '../../src/services/HealthKitService';
-
-// Import HealthKit module
 import HealthKit from "@/src/NativeModules/HealthKit";
+import AppleWatchIntegration from '../../components/AppleWatchIntegration';
+import AppleWatchService from '../../src/NativeModules/AppleWatch';
 
 export default function HealthScreen() {
   const router = useRouter();
@@ -43,19 +47,23 @@ export default function HealthScreen() {
     activityLogs, 
     isTrackingLocation,
     isAppleWatchConnected,
-    getConnectedDeviceByType
+    getConnectedDeviceByType,
+    syncSwimmingFromHealthKit,
+    startSwimmingSync,
+    stopSwimmingSync,
+    manualSyncSwimming,
+    setIsAppleWatchConnected
   } = useHealthStore();
   const { progressPhotos } = usePhotoStore();
   const { colors } = useTheme();
   
   const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [isSwimmingSyncLoading, setIsSwimmingSyncLoading] = useState(false);
 
   const [healthKitAvailable, setHealthKitAvailable] = useState(false);
   const [healthKitAuthorized, setHealthKitAuthorized] = useState(false);
   
-
-  
-  // Initialize HealthKit
+  // Initialize HealthKit and start swimming sync
   useEffect(() => {
     if (Platform.OS === 'ios') {
       const initializeHealthKit = async () => {
@@ -76,6 +84,11 @@ export default function HealthScreen() {
             ]);
             
             setHealthKitAuthorized(authResult.authorized);
+            
+            // Start swimming sync if authorized
+            if (authResult.authorized) {
+              startSwimmingSync();
+            }
           }
         } catch (error) {
           console.error("Error initializing HealthKit:", error);
@@ -84,6 +97,30 @@ export default function HealthScreen() {
       
       initializeHealthKit();
     }
+    
+    // Cleanup swimming sync on unmount
+    return () => {
+      stopSwimmingSync();
+    };
+  }, []);
+
+  useEffect(() => {
+    let subscription;
+    const checkAppleWatch = async () => {
+      if (Platform.OS === 'ios') {
+        const reachable = await AppleWatchService.isAppleWatchReachable();
+        setIsAppleWatchConnected(!!reachable);
+      }
+    };
+    checkAppleWatch();
+    if (Platform.OS === 'ios' && AppleWatchService.eventEmitter) {
+      subscription = AppleWatchService.eventEmitter.addListener('watchStatusChanged', (data) => {
+        setIsAppleWatchConnected(!!data.isReachable);
+      });
+    }
+    return () => {
+      if (subscription) subscription.remove();
+    };
   }, []);
   
 
@@ -215,15 +252,85 @@ export default function HealthScreen() {
       console.error("Error syncing devices:", error);
       Alert.alert(
         "Sync Error",
-        "There was an error syncing your health data. Please try again.",
+        "There was an error syncing your devices. Please try again.",
         [{ text: "OK" }]
       );
     } finally {
       setIsSyncingAll(false);
     }
   };
-  
 
+  const handleSwimmingSync = async () => {
+    setIsSwimmingSyncLoading(true);
+    
+    try {
+      await manualSyncSwimming();
+      Alert.alert(
+        "Swimming Sync Complete",
+        "Swimming activities have been synced from Apple Health.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("Error syncing swimming:", error);
+      Alert.alert(
+        "Sync Error",
+        "There was an error syncing swimming activities. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsSwimmingSyncLoading(false);
+    }
+  };
+
+  const handleWorkoutControl = (type, data) => {
+    console.log('Workout control received:', type, data);
+    // Handle workout controls from Apple Watch
+    switch (type) {
+      case 'startWorkout':
+        Alert.alert('Workout Started', 'Workout started from Apple Watch');
+        break;
+      case 'pauseWorkout':
+        Alert.alert('Workout Paused', 'Workout paused from Apple Watch');
+        break;
+      case 'skipExercise':
+        Alert.alert('Exercise Skipped', 'Exercise skipped from Apple Watch');
+        break;
+      case 'completeSet':
+        Alert.alert('Set Completed', 'Set marked as complete from Apple Watch');
+        break;
+      case 'emergencyStopWorkout':
+        Alert.alert('Workout Stopped', 'Workout stopped from Apple Watch');
+        break;
+    }
+  };
+
+  const handleQuickLog = (type, data) => {
+    console.log('Quick log received:', type, data);
+    // Handle quick logging from Apple Watch
+    switch (type) {
+      case 'logWater':
+        if (data.amount) {
+          Alert.alert('Water Logged', `Logged ${data.amount} from Apple Watch`);
+        }
+        break;
+      case 'logWeight':
+        if (data.weight) {
+          Alert.alert('Weight Logged', `Logged ${data.weight}kg from Apple Watch`);
+        }
+        break;
+      case 'logMood':
+        if (data.mood && data.description) {
+          Alert.alert('Mood Logged', `Logged mood: ${data.description} from Apple Watch`);
+        }
+        break;
+    }
+  };
+
+  const handleNotificationReceived = (type, data) => {
+    console.log('Notification received:', type, data);
+    // Handle notifications from Apple Watch
+    Alert.alert('Apple Watch Notification', `Received ${type} notification`);
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -233,7 +340,7 @@ export default function HealthScreen() {
         <Text style={[styles.title, { color: colors.text }]}>Health Tracking</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Monitor your fitness progress</Text>
       </View>
-      
+
       {/* Apple Health Banner (iOS only) */}
       {Platform.OS === 'ios' && healthKitAvailable && !healthKitAuthorized && (
         <View style={[
@@ -243,11 +350,11 @@ export default function HealthScreen() {
           <View style={styles.healthKitContent}>
             <Zap size={20} color={colors.primary} />
             <Text style={[styles.healthKitText, { color: colors.text }]}>
-              Connect to Apple Health to automatically sync your steps, workouts, and more.
+              Connect to Apple Health to automatically sync your steps, workouts, and swimming activities.
             </Text>
           </View>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.healthKitButton, { backgroundColor: colors.primary }]}
             onPress={async () => {
               try {
@@ -288,6 +395,31 @@ export default function HealthScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Swimming Sync Section */}
+      {Platform.OS === 'ios' && healthKitAvailable && healthKitAuthorized && (
+        <View style={[styles.section, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <Zap size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Swimming Sync
+            </Text>
+          </View>
+          <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+            Automatically sync swimming activities from Apple Health
+          </Text>
+          <TouchableOpacity
+            style={[styles.syncButton, { backgroundColor: colors.primary }]}
+            onPress={handleSwimmingSync}
+            disabled={isSwimmingSyncLoading}
+          >
+            <RefreshCw size={16} color="white" style={isSwimmingSyncLoading ? styles.rotating : undefined} />
+            <Text style={styles.syncButtonText}>
+              {isSwimmingSyncLoading ? 'Syncing...' : 'Sync Swimming'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
       
 
       
@@ -304,7 +436,7 @@ export default function HealthScreen() {
               </>
             ) : (
               <>
-                <Watch size={20} color={colors.primary} />
+                <Smartphone size={20} color={colors.primary} />
                 <Text style={[styles.deviceText, { color: colors.text }]}>
                   Connected to {
                     appleWatch ? "Apple Watch" : 
@@ -316,7 +448,7 @@ export default function HealthScreen() {
               </>
             )}
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.syncAllButton}
             onPress={handleSyncAllDevices}
             disabled={isSyncingAll}
@@ -333,12 +465,24 @@ export default function HealthScreen() {
         </View>
       )}
       
-      <StepCounter />
+      {/* Step Counter */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Activity size={20} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Step Counter</Text>
+        </View>
+        <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+          Track your daily steps and activity
+        </Text>
+        <StepCounter />
+      </View>
       
+      {/* Weight Tracker */}
       <WeightTracker 
         onAddWeight={() => router.push("/weight-log")}
       />
       
+      {/* Water Tracker */}
       <WaterTracker />
       
       {isTrackingLocation && (
@@ -369,8 +513,8 @@ export default function HealthScreen() {
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>{totalWorkouts}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Workouts</Text>
-        </View>
-        
+         </View>
+
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={[styles.statIconContainer, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
             <Award size={20} color={colors.secondary} />
@@ -395,7 +539,7 @@ export default function HealthScreen() {
         >
           <View style={styles.connectDeviceContent}>
             <View style={[styles.connectDeviceIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-              <Watch size={24} color={colors.primary} />
+              <Smartphone size={24} color={colors.primary} />
             </View>
             <View style={styles.connectDeviceInfo}>
               <Text style={[styles.connectDeviceTitle, { color: colors.text }]}>
@@ -409,7 +553,7 @@ export default function HealthScreen() {
           <ChevronRight size={20} color={colors.textLight} />
         </TouchableOpacity>
       )}
-      
+
       {recentActivities.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -442,11 +586,11 @@ export default function HealthScreen() {
                       {activity.source.includes("Apple Health") ? (
                         <Zap size={12} color={colors.primary} />
                       ) : activity.source.includes("Apple") ? (
-                        <Watch size={12} color={colors.textSecondary} />
+                        <Smartphone size={12} color={colors.textSecondary} />
                       ) : activity.source.includes("Fitbit") ? (
-                        <Watch size={12} color="#00B0B9" />
+                        <Smartphone size={12} color="#00B0B9" />
                       ) : activity.source.includes("Garmin") ? (
-                        <Watch size={12} color="#006CC1" />
+                        <Smartphone size={12} color="#006CC1" />
                       ) : (
                         <Zap size={12} color={colors.textSecondary} />
                       )}
@@ -502,20 +646,24 @@ export default function HealthScreen() {
           <ChevronRight size={20} color={colors.textLight} />
         </TouchableOpacity>
         
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.toolCard, { backgroundColor: colors.card }]}
           onPress={() => router.push("/health-devices")}
         >
           <View style={styles.toolInfo}>
             <View style={[styles.toolIcon, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
-              <Watch size={24} color={colors.secondary} />
+              <Smartphone size={24} color={colors.secondary} />
             </View>
             <View>
               <Text style={[styles.toolTitle, { color: colors.text }]}>Connected Devices</Text>
               <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                {connectedDevices.length > 0 
-                  ? `${connectedDevices.length} device${connectedDevices.length > 1 ? 's' : ''} connected`
-                  : "Connect your smartwatch or fitness tracker"
+                {Platform.OS === 'ios' && isAppleWatchConnected
+                  ? "Apple Watch connected - Control workouts from your watch"
+                  : hasConnectedDevices
+                    ? `${connectedDevices.length} device${connectedDevices.length > 1 ? 's' : ''} connected`
+                    : healthKitAuthorized
+                      ? "Apple Health connected"
+                      : "Connect your smartwatch or fitness tracker"
                 }
               </Text>
             </View>
@@ -687,33 +835,47 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-  seeAll: {
+  sectionDescription: {
     fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  activityButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 12,
+    justifyContent: 'center',
   },
-  activityButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "500",
-    marginLeft: 8,
+  syncButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  rotating: {
+    transform: [{ rotate: '360deg' }],
   },
   statsContainer: {
     flexDirection: "row",
@@ -915,5 +1077,24 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  seeAll: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  activityButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  activityButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

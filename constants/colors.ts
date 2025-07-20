@@ -12,6 +12,7 @@ export const colors = {
   warning: "#FFC107",
   info: "#17A2B8",
   shadow: "#000000",
+  inactive: "#E9ECEF",
   
   // Macro colors
   calorieColor: "#FF6B6B", // Red for calories

@@ -61,14 +61,35 @@ export default function TermsOfService() {
             Our fitness app provides tools for tracking workouts, nutrition, and health metrics. The app may include features such as workout plans, exercise demonstrations, progress tracking, and nutrition logging.
           </Text>
           
-          <Text style={[styles.section, { color: colors.text }]}>3. User Accounts</Text>
-          <Text style={[styles.paragraph, { color: colors.text }]}>
-            You may be required to create an account to use certain features of our app. You are responsible for maintaining the confidentiality of your account information and for all activities that occur under your account.
-          </Text>
-          
-          <Text style={[styles.section, { color: colors.text }]}>4. User Content</Text>
+          <Text style={[styles.section, { color: colors.text }]}>3. User Content</Text>
           <Text style={[styles.paragraph, { color: colors.text }]}>
             You retain ownership of any content you submit to the app, including photos and personal data. By submitting content, you grant us a non-exclusive, royalty-free license to use, store, and process that content solely for the purpose of providing and improving our services.
+          </Text>
+          
+          <Text style={[styles.section, { color: colors.text }]}>4. AI Assistant and Data Handling</Text>
+          <Text style={[styles.paragraph, { color: colors.text }]}>
+            Our app includes an AI assistant feature that provides personalized fitness guidance and recommendations. Here's how we handle your data when using the AI assistant:
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Conversation Data:</Text> Your conversations with the AI assistant are processed locally on your device to provide personalized responses and improve the service. This includes your fitness goals, preferences, and questions.
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Personalization:</Text> The AI uses your fitness data (workouts, nutrition, progress) stored locally on your device to provide tailored recommendations and guidance.
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Data Storage:</Text> Your AI conversations and preferences are stored locally on your device to maintain continuity and improve your experience. No data is transmitted to external servers.
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Privacy Protection:</Text> All your personal fitness data and AI conversations remain on your device. We do not collect, store, or transmit any of your data to external servers or third parties.
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Data Retention:</Text> Your AI conversation history is retained locally on your device for the duration of your app usage. You can clear this data through your device settings or by uninstalling the app.
+          </Text>
+          <Text style={[styles.bulletPoint, { color: colors.text }]}>
+            • <Text style={{ fontWeight: '600' }}>Offline Operation:</Text> The AI assistant operates completely offline. No internet connection is required for AI functionality, and no data is shared with external services.
+          </Text>
+          <Text style={[styles.paragraph, { color: colors.text }]}>
+            By using the AI assistant feature, you consent to this local data handling as described above. Your privacy is protected as all data remains on your device.
           </Text>
           
           <Text style={[styles.section, { color: colors.text }]}>5. Third-Party Content and Copyright</Text>

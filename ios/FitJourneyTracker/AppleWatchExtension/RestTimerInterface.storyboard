@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder.WatchKit.Storyboard" version="3.0" toolsVersion="21507" targetRuntime="watchOS" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="AgC-eL-Hgc">
+    <device id="watch38"/>
+    <scenes>
+        <!--Rest Timer Interface Controller-->
+        <scene sceneID="aou-Vg-dgc">
+            <objects>
+                <controller id="AgC-eL-Hgc" customClass="RestTimerInterfaceController" customModule="FitJourneyTracker" customModuleProvider="target" sceneMemberID="viewController">
+                    <items key="interface">
+                        <group alignment="center" width="1" height="1">
+                            <items>
+                                <!-- Progress Ring Container -->
+                                <group alignment="center" width="1" height="1" id="progressRing">
+                                    <items>
+                                        <!-- Outer Ring -->
+                                        <group alignment="center" width="120" height="120" id="outerRing">
+                                            <items>
+                                                <imageView alignment="center" width="120" height="120" id="progressRingImage">
+                                                    <rect key="frame" x="0.0" y="0.0" width="120" height="120"/>
+                                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                    <color key="backgroundColor" systemColor="systemGrayColor"/>
+                                                    <constraints>
+                                                        <constraint firstItem="progressRingImage" firstAttribute="width" secondItem="outerRing" secondAttribute="width" id="ringWidth"/>
+                                                        <constraint firstItem="progressRingImage" firstAttribute="height" secondItem="outerRing" secondAttribute="height" id="ringHeight"/>
+                                                    </constraints>
+                                                </imageView>
+                                            </items>
+                                        </group>
+                                        
+                                        <!-- Timer Label -->
+                                        <label alignment="center" width="1" height="1" id="timerLabel">
+                                            <rect key="frame" x="0.0" y="0.0" width="120" height="120"/>
+                                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <fontDescription key="fontDescription" type="system" pointSize="32" weight="bold"/>
+                                            <color key="textColor" systemColor="labelColor"/>
+                                            <constraints>
+                                                <constraint firstItem="timerLabel" firstAttribute="width" secondItem="outerRing" secondAttribute="width" id="timerWidth"/>
+                                                <constraint firstItem="timerLabel" firstAttribute="height" secondItem="outerRing" secondAttribute="height" id="timerHeight"/>
+                                            </constraints>
+                                        </label>
+                                    </items>
+                                </group>
+                                
+                                <!-- Status Label -->
+                                <label alignment="center" width="1" height="1" id="statusLabel">
+                                    <rect key="frame" x="0.0" y="0.0" width="120" height="120"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                    <fontDescription key="fontDescription" type="system" pointSize="16" weight="medium"/>
+                                    <color key="textColor" systemColor="secondaryLabelColor"/>
+                                    <string key="text">Ready</string>
+                                    <constraints>
+                                        <constraint firstItem="statusLabel" firstAttribute="width" secondItem="outerRing" secondAttribute="width" id="statusWidth"/>
+                                        <constraint firstItem="statusLabel" firstAttribute="height" secondItem="outerRing" secondAttribute="height" id="statusHeight"/>
+                                    </constraints>
+                                </label>
+                                
+                                <!-- Countdown Label (Hidden by default) -->
+                                <label alignment="center" width="1" height="1" id="countdownLabel">
+                                    <rect key="frame" x="0.0" y="0.0" width="120" height="120"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                    <fontDescription key="fontDescription" type="system" pointSize="48" weight="bold"/>
+                                    <color key="textColor" systemColor="systemRedColor"/>
+                                    <string key="text">10</string>
+                                    <constraints>
+                                        <constraint firstItem="countdownLabel" firstAttribute="width" secondItem="outerRing" secondAttribute="width" id="countdownWidth"/>
+                                        <constraint firstItem="countdownLabel" firstAttribute="height" secondItem="outerRing" secondAttribute="height" id="countdownHeight"/>
+                                    </constraints>
+                                </label>
+                            </items>
+                        </group>
+                    </items>
+                    <connections>
+                        <outlet property="timerLabel" destination="timerLabel" id="timerLabelOutlet"/>
+                        <outlet property="statusLabel" destination="statusLabel" id="statusLabelOutlet"/>
+                        <outlet property="progressRing" destination="progressRing" id="progressRingOutlet"/>
+                        <outlet property="countdownLabel" destination="countdownLabel" id="countdownLabelOutlet"/>
+                    </connections>
+                </controller>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="progressRingImage" width="120" height="120"/>
+    </resources>
+</document> 

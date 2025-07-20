@@ -946,9 +946,9 @@ export default function HomeScreen() {
                 </Text>
               </View>
               
-              {recommendedWorkouts.map((workout) => (
+              {recommendedWorkouts.map((workout, index) => (
                 <WorkoutCard 
-                  key={workout.id} 
+                  key={`${workout.id}-${index}`} 
                   workout={{...workout, isRecommended: true}}
                   onPress={() => handleStartWorkout(workout.id)}
                 />

@@ -330,8 +330,8 @@ export default function WorkoutsScreen() {
               <View key={category} style={styles.categorySection}>
                 <Text style={[styles.categoryTitle, { color: colors.text }]}>{category}</Text>
                 
-                {workoutsByCategory[category].map((workout) => (
-                  <WorkoutCard key={workout.id} workout={workout} />
+                                  {workoutsByCategory[category].map((workout, index) => (
+                  <WorkoutCard key={`${workout.id}-${index}`} workout={workout} />
                 ))}
               </View>
             ))}

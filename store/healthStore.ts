@@ -35,6 +35,8 @@ interface HealthState {
   deviceSyncHistory: DeviceSync[];
   lastDeviceSync: string | null;
   dailyNotes: DailyNote[];
+  swimmingSyncInterval: NodeJS.Timeout | null;
+  isAppleWatchConnected: boolean;
   
   // Actions
   addWeightLog: (log: WeightLog) => void;
@@ -58,6 +60,7 @@ interface HealthState {
   
   setIsTrackingSteps: (isTracking: boolean) => void;
   setIsTrackingLocation: (isTracking: boolean) => void;
+  setIsAppleWatchConnected: (isConnected: boolean) => void;
   
   // Water intake tracking
   addWaterIntake: (amount: number) => void;
@@ -116,6 +119,12 @@ interface HealthState {
   syncStepsFromHealthKit: () => Promise<void>;
   writeWeightToHealthKit: (weight: number, date: Date) => Promise<boolean>;
   
+  // Swimming sync methods
+  syncSwimmingFromHealthKit: () => Promise<boolean>;
+  startSwimmingSync: () => void;
+  stopSwimmingSync: () => void;
+  manualSyncSwimming: () => Promise<boolean>;
+  
   // Device-specific methods
   isAppleWatchConnected: () => boolean;
   getConnectedDeviceById: (deviceId: string) => HealthDevice | undefined;
@@ -146,6 +155,8 @@ export const useHealthStore = create<HealthState>()(
       deviceSyncHistory: [], // Track device sync history
       lastDeviceSync: null, // Last device sync timestamp
       dailyNotes: [], // Initialize with empty array
+      swimmingSyncInterval: null, // Initialize with null
+      isAppleWatchConnected: false, // Initialize with false
       
       addWeightLog: (log) => set((state) => {
         // Check if a log with the same ID already exists
@@ -224,6 +235,8 @@ export const useHealthStore = create<HealthState>()(
       setIsTrackingSteps: (isTracking) => set({ isTrackingSteps: isTracking }),
       
       setIsTrackingLocation: (isTracking) => set({ isTrackingLocation: isTracking }),
+      
+      setIsAppleWatchConnected: (isConnected) => set({ isAppleWatchConnected: isConnected }),
       
       // Water intake tracking
       addWaterIntake: (amount) => set((state) => {
@@ -940,6 +953,111 @@ export const useHealthStore = create<HealthState>()(
             console.error('[HealthStore] Error writing weight to HealthKit:', error);
             return false;
           }
+        },
+
+        // Swimming sync methods
+        syncSwimmingFromHealthKit: async () => {
+          if (Platform.OS !== 'ios') return false;
+          
+          try {
+            // Initialize HealthKit if not already done
+            await HealthKitService.initialize();
+            
+            // Request authorization for workouts
+            const healthPermissions = await HealthKitService.requestAuthorization(['workouts']);
+            if (!healthPermissions) {
+              console.error("[HealthStore] HealthKit workout permissions not granted");
+              return false;
+            }
+            
+            // Get swimming workouts from the last 30 days
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            const swimmingWorkouts = await HealthKitService.getSwimmingWorkouts(startDate, endDate);
+            
+            if (swimmingWorkouts && swimmingWorkouts.length > 0) {
+              // Convert swimming workouts to ActivityLog format
+              const newActivityLogs: ActivityLog[] = swimmingWorkouts.map(workout => ({
+                id: `swimming_${workout.startDate.getTime()}`,
+                type: 'swimming',
+                date: workout.startDate.toISOString(),
+                duration: workout.duration,
+                distance: workout.distance,
+                calories: workout.energyBurned,
+                source: 'Apple Health',
+                deviceId: 'apple_health',
+                // Swimming-specific metrics
+                swimmingMetrics: {
+                  laps: workout.laps,
+                  strokeType: workout.strokeType,
+                  poolLength: workout.poolLength,
+                  averagePace: workout.averagePace
+                },
+                notes: `Swimming workout synced from Apple Health`
+              }));
+              
+              // Add new swimming activities to the store
+              set((state) => {
+                const existingIds = new Set(state.activityLogs.map(log => log.id));
+                const uniqueNewLogs = newActivityLogs.filter(log => !existingIds.has(log.id));
+                
+                if (uniqueNewLogs.length > 0) {
+                  console.log(`[HealthStore] Synced ${uniqueNewLogs.length} swimming activities from HealthKit`);
+                  
+                  // Check for automatic quest completion after adding swimming activities
+                  setTimeout(() => {
+                    const gamificationStore = useGamificationStore.getState();
+                    gamificationStore.checkAndAutoCompleteQuests();
+                  }, 100);
+                  
+                  return {
+                    activityLogs: [...state.activityLogs, ...uniqueNewLogs]
+                  };
+                }
+                
+                return state;
+              });
+              
+              return true;
+            }
+            
+            return false;
+          } catch (error) {
+            console.error('[HealthStore] Failed to sync swimming from HealthKit:', error);
+            return false;
+          }
+        },
+
+        // Background swimming sync
+        startSwimmingSync: () => {
+          if (Platform.OS !== 'ios') return;
+          
+          // Sync swimming activities every 15 minutes
+          const syncInterval = setInterval(async () => {
+            const state = get();
+            if (state.isTrackingLocation) { // Only sync when app is active
+              await state.syncSwimmingFromHealthKit();
+            }
+          }, 15 * 60 * 1000); // 15 minutes
+          
+          // Store the interval ID for cleanup
+          set({ swimmingSyncInterval: syncInterval });
+        },
+
+        stopSwimmingSync: () => {
+          const state = get();
+          if (state.swimmingSyncInterval) {
+            clearInterval(state.swimmingSyncInterval);
+            set({ swimmingSyncInterval: null });
+          }
+        },
+
+        // Manual swimming sync
+        manualSyncSwimming: async () => {
+          const success = await get().syncSwimmingFromHealthKit();
+          return success;
         }
     }),
     {

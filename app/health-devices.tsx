@@ -6,6 +6,7 @@ import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { HealthDevice } from "@/types";
 import Button from "@/components/Button";
+import AppleWatchService from "@/src/NativeModules/AppleWatch";
 
 export default function HealthDevicesScreen() {
   const router = useRouter();
@@ -16,12 +17,47 @@ export default function HealthDevicesScreen() {
     removeDevice,
     importDataFromDevice,
     getLastSyncTimeForDevice,
-    getDeviceSyncHistory
+    getDeviceSyncHistory,
+    isAppleWatchConnected,
+    setIsAppleWatchConnected
   } = useHealthStore();
   
   const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
+  const [isCheckingAppleWatch, setIsCheckingAppleWatch] = useState(true);
   
-
+  // Check Apple Watch connection status
+  useEffect(() => {
+    const checkAppleWatchConnection = async () => {
+      if (Platform.OS === 'ios') {
+        try {
+          const isReachable = await AppleWatchService.isAppleWatchReachable();
+          setIsAppleWatchConnected(isReachable);
+        } catch (error) {
+          console.log('Apple Watch not available:', error);
+          setIsAppleWatchConnected(false);
+        }
+      }
+      setIsCheckingAppleWatch(false);
+    };
+    
+    checkAppleWatchConnection();
+    
+    // Listen for Apple Watch connection changes
+    let subscription;
+    try {
+      subscription = AppleWatchService.addListener('appleWatchStatusChanged', (status) => {
+        setIsAppleWatchConnected(status.isReachable);
+      });
+    } catch (error) {
+      console.log('Apple Watch event listener not available:', error);
+    }
+    
+    return () => {
+      if (subscription && subscription.remove) {
+        subscription.remove();
+      }
+    };
+  }, [setIsAppleWatchConnected]);
   
   const handleScanDevices = async () => {
     Alert.alert(
@@ -209,59 +245,34 @@ export default function HealthDevicesScreen() {
     }
     
     if (name.includes("fitbit")) {
+      if (name.includes("charge")) return "Charge";
       if (name.includes("versa")) return "Versa";
       if (name.includes("sense")) return "Sense";
-      if (name.includes("charge")) return "Charge";
       return "Fitbit";
     }
     
     if (name.includes("garmin")) {
-      if (name.includes("forerunner")) return "Forerunner";
       if (name.includes("fenix")) return "Fenix";
-      if (name.includes("venu")) return "Venu";
+      if (name.includes("vivoactive")) return "Vivoactive";
+      if (name.includes("forerunner")) return "Forerunner";
       return "Garmin";
     }
     
     if (name.includes("samsung") || name.includes("galaxy")) {
-      if (name.includes("watch 5")) return "Galaxy Watch 5";
-      if (name.includes("watch 4")) return "Galaxy Watch 4";
-      return "Galaxy Watch";
+      if (name.includes("watch")) return "Galaxy Watch";
+      return "Samsung";
     }
     
     if (name.includes("whoop")) {
-      if (name.includes("4.0")) return "4.0";
-      return "WHOOP";
+      return "Whoop";
     }
     
     if (name.includes("xiaomi") || name.includes("mi band")) {
-      if (name.includes("7")) return "Mi Band 7";
-      if (name.includes("6")) return "Mi Band 6";
       return "Mi Band";
     }
     
     return "Unknown Model";
   };
-  
-  // Render loading state
-  if (isInitializing) {
-    return (
-      <View style={[styles.mainContainer, styles.loadingContainer]}>
-        <Stack.Screen 
-          options={{
-            title: "Health Devices",
-            headerBackTitle: "Health",
-            headerLeft: () => (
-              <TouchableOpacity onPress={handleGoBack} style={styles.headerBackButton}>
-                <ArrowLeft size={24} color={colors.primary} />
-              </TouchableOpacity>
-            ),
-          }}
-        />
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Initializing Bluetooth...</Text>
-      </View>
-    );
-  }
   
   return (
     <View style={styles.mainContainer}>
@@ -283,159 +294,18 @@ export default function HealthDevicesScreen() {
           <Text style={styles.subtitle}>Manage your health tracking devices and sync data</Text>
         </View>
         
-        {/* Bluetooth Status Banner */}
-        <View style={[
-          styles.bluetoothStatusBanner, 
-          { 
-            backgroundColor: bluetoothState === "poweredOn" 
-              ? "rgba(76, 217, 100, 0.1)" 
-              : "rgba(255, 59, 48, 0.1)" 
-          }
-        ]}>
-          {bluetoothState === "poweredOn" ? (
-            <View style={styles.bluetoothStatusContent}>
-              <CheckCircle2 size={20} color="#4CD964" />
-              <Text style={[styles.bluetoothStatusText, { color: "#4CD964" }]}>
-                Bluetooth is enabled and ready
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.bluetoothStatusContent}>
-              <AlertTriangle size={20} color="#FF3B30" />
-              <Text style={[styles.bluetoothStatusText, { color: "#FF3B30" }]}>
-                {bluetoothError || "Bluetooth is not available or is turned off"}
-              </Text>
-            </View>
-          )}
-          
-          {bluetoothState !== "poweredOn" && (
-            <TouchableOpacity 
-              style={styles.bluetoothSettingsButton}
-              onPress={() => {
-                Alert.alert(
-                  "Enable Bluetooth",
-                  "Please open your device settings and enable Bluetooth.",
-                  [{ text: "OK" }]
-                );
-              }}
-            >
-              <Text style={styles.bluetoothSettingsText}>Open Settings</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {/* Permission Status Banner (iOS only) */}
-        {Platform.OS === 'ios' && permissionStatus !== "granted" && (
-          <View style={[styles.bluetoothWarning, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
-            <View style={styles.bluetoothStatusContent}>
-              <AlertTriangle size={20} color="#FF9500" />
-              <Text style={[styles.bluetoothWarningText, { color: "#FF9500" }]}>
-                Bluetooth permissions are required to scan for devices
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.bluetoothSettingsButton, { backgroundColor: "#FF9500" }]}
-              onPress={async () => {
-                try {
-                  setPermissionStatus("granted");
-                  
-                  if (!permissionStatus) {
-                    Alert.alert(
-                      "Permissions Required",
-                      "Please enable Bluetooth permissions in your device settings to scan for devices.",
-                      [{ text: "OK" }]
-                    );
-                  }
-                } catch (error) {
-                  console.error("Error requesting permissions:", error);
-                }
-              }}
-            >
-              <Text style={styles.bluetoothSettingsText}>Request Permissions</Text>
-            </TouchableOpacity>
+        {/* HealthKit Integration Info */}
+        <View style={[styles.bluetoothStatusBanner, { backgroundColor: "rgba(76, 217, 100, 0.1)" }]}>
+          <View style={styles.bluetoothStatusContent}>
+            <CheckCircle2 size={20} color="#4CD964" />
+            <Text style={[styles.bluetoothStatusText, { color: "#4CD964" }]}>
+              {Platform.OS === 'ios' 
+                ? "Apple Health integration is available"
+                : "Google Fit integration is available"
+              }
+            </Text>
           </View>
-        )}
-        
-        <View style={styles.scanContainer}>
-          <Button
-            title={isScanning ? "Scanning..." : "Scan for Devices"}
-            onPress={handleScanDevices}
-            loading={isScanning}
-            icon={<Bluetooth size={18} color={colors.primary} />}
-            variant="outline"
-            style={styles.scanButton}
-            disabled={bluetoothState !== "poweredOn" || (Platform.OS === 'ios' && permissionStatus !== "granted")}
-          />
-          
-          {bluetoothError && bluetoothState === "poweredOn" && (
-            <Text style={styles.errorText}>{bluetoothError}</Text>
-          )}
         </View>
-        
-        {showAvailableDevices && availableDevices.length > 0 && (
-          <View style={styles.availableDevicesContainer}>
-            <Text style={styles.sectionTitle}>Available Devices</Text>
-            
-            {availableDevices.map((device) => (
-              <View key={device.id} style={styles.deviceCard}>
-                <View style={styles.deviceInfo}>
-                  <View style={[
-                    styles.deviceIconContainer, 
-                    device.type === "fitbit" ? { backgroundColor: "rgba(0, 176, 185, 0.1)" } :
-                    device.type === "garmin" ? { backgroundColor: "rgba(0, 108, 193, 0.1)" } :
-                    device.type === "samsung" ? { backgroundColor: "rgba(20, 40, 160, 0.1)" } :
-                    device.type === "whoop" ? { backgroundColor: "rgba(0, 165, 80, 0.1)" } :
-                    device.type === "xiaomi" ? { backgroundColor: "rgba(255, 103, 0, 0.1)" } :
-                    { backgroundColor: "rgba(74, 144, 226, 0.1)" }
-                  ]}>
-                    {getDeviceIcon(device.type)}
-                  </View>
-                  
-                  <View style={styles.deviceDetails}>
-                    <Text style={styles.deviceName}>{device.name}</Text>
-                    <Text style={styles.deviceStatus}>
-                      {device.model}
-                      {device.batteryLevel && ` • Battery: ${device.batteryLevel}%`}
-                    </Text>
-                    {device.rssi && (
-                      <View style={styles.signalContainer}>
-                        <Text style={styles.signalText}>
-                          Signal: {device.rssi > -60 ? "Strong" : device.rssi > -80 ? "Good" : "Weak"}
-                        </Text>
-                        <View style={styles.signalBars}>
-                          <View style={[
-                            styles.signalBar, 
-                            { backgroundColor: device.rssi > -90 ? colors.primary : colors.border }
-                          ]} />
-                          <View style={[
-                            styles.signalBar, 
-                            { backgroundColor: device.rssi > -80 ? colors.primary : colors.border }
-                          ]} />
-                          <View style={[
-                            styles.signalBar, 
-                            { backgroundColor: device.rssi > -70 ? colors.primary : colors.border }
-                          ]} />
-                          <View style={[
-                            styles.signalBar, 
-                            { backgroundColor: device.rssi > -60 ? colors.primary : colors.border }
-                          ]} />
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                
-                <Button
-                  title="Connect"
-                  onPress={() => handleConnectDevice(device)}
-                  size="small"
-                  style={styles.connectButton}
-                />
-              </View>
-            ))}
-          </View>
-        )}
         
         {connectedDevices.length > 0 ? (
           <View style={styles.devicesContainer}>
@@ -533,12 +403,36 @@ export default function HealthDevicesScreen() {
         ) : (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Watch size={40} color={colors.textLight} />
+              {isCheckingAppleWatch ? (
+                <ActivityIndicator size={40} color={colors.primary} />
+              ) : isAppleWatchConnected ? (
+                <Watch size={40} color={colors.primary} />
+              ) : (
+                <Watch size={40} color={colors.textLight} />
+              )}
             </View>
-            <Text style={styles.emptyTitle}>No Devices Connected</Text>
-            <Text style={styles.emptyText}>
-              Connect your smartwatch or fitness tracker to automatically sync your health data
+            <Text style={styles.emptyTitle}>
+              {isCheckingAppleWatch 
+                ? "Checking Apple Watch..." 
+                : isAppleWatchConnected 
+                  ? "Apple Watch Connected" 
+                  : "No Devices Connected"
+              }
             </Text>
+            <Text style={styles.emptyText}>
+              {isCheckingAppleWatch 
+                ? "Detecting your Apple Watch connection..."
+                : isAppleWatchConnected 
+                  ? "Your Apple Watch is connected and syncing data automatically. You can control workouts and log activities directly from your watch."
+                  : "Connect your smartwatch or fitness tracker to automatically sync your health data"
+              }
+            </Text>
+            {isAppleWatchConnected && (
+              <View style={styles.appleWatchStatus}>
+                <CheckCircle2 size={16} color={colors.success} />
+                <Text style={styles.appleWatchStatusText}>Connected via WatchConnectivity</Text>
+              </View>
+            )}
           </View>
         )}
         
@@ -689,8 +583,10 @@ export default function HealthDevicesScreen() {
         <View style={styles.helpSection}>
           <Text style={styles.helpTitle}>Need Help?</Text>
           <Text style={styles.helpText}>
-            If you're having trouble connecting your device, make sure Bluetooth is enabled and your device is nearby.
-            For Apple Watch, ensure that Health sharing is enabled in the Watch app.
+            {Platform.OS === 'ios' 
+              ? "For Apple Watch, ensure that Health sharing is enabled in the Watch app and your watch is paired with your iPhone. Apple Watch connects automatically via WatchConnectivity."
+              : "If you're having trouble connecting your device, make sure Bluetooth is enabled and your device is nearby."
+            }
           </Text>
           <TouchableOpacity style={styles.helpButton}>
             <Text style={styles.helpButtonText}>View Troubleshooting Guide</Text>
@@ -980,6 +876,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: "center",
+  },
+  appleWatchStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    backgroundColor: "rgba(76, 217, 100, 0.1)",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  appleWatchStatusText: {
+    fontSize: 12,
+    color: "#4CD964",
+    marginLeft: 8,
   },
   section: {
     marginBottom: 24,

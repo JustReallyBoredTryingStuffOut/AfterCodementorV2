@@ -471,6 +471,138 @@ class HealthKitService {
     };
   }
 
+  /**
+   * Get swimming workouts for a specific date range
+   */
+  async getSwimmingWorkouts(startDate: Date, endDate: Date) {
+    this.ensureInitialized();
+    this.ensureAuthorized(HEALTH_DATA_TYPES.WORKOUT);
+
+    try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
+      const result = await this.healthKit.getWorkouts(
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate)
+      );
+
+      if (result.success) {
+        // Filter for swimming workouts only (HKWorkoutActivityType.Swimming = 46)
+        const swimmingWorkouts = result.workouts.filter(workout => 
+          workout.type === 46 // Swimming activity type
+        );
+
+        return swimmingWorkouts.map(workout => ({
+          ...workout,
+          startDate: new Date(workout.startDate),
+          endDate: new Date(workout.endDate),
+          // Add swimming-specific metrics
+          laps: this.calculateSwimmingLaps(workout.distance),
+          strokeType: this.determineStrokeType(workout),
+          poolLength: this.getPoolLength(workout),
+          averagePace: this.calculateSwimmingPace(workout.duration, workout.distance)
+        }));
+      } else {
+        throw new Error('Failed to retrieve swimming workouts');
+      }
+    } catch (error) {
+      console.error('[HealthKitService] Failed to get swimming workouts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get recent swimming workouts (last 7 days by default)
+   */
+  async getRecentSwimmingWorkouts(days: number = 7) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    return this.getSwimmingWorkouts(startDate, endDate);
+  }
+
+  /**
+   * Calculate swimming laps based on distance
+   * Assumes standard 25m or 50m pool lengths
+   */
+  private calculateSwimmingLaps(distance: number): { total: number, pool25m: number, pool50m: number } {
+    const laps25m = Math.round((distance / 25) * 10) / 10; // Round to 1 decimal
+    const laps50m = Math.round((distance / 50) * 10) / 10;
+    
+    return {
+      total: Math.round(distance),
+      pool25m: laps25m,
+      pool50m: laps50m
+    };
+  }
+
+  /**
+   * Determine stroke type based on workout metadata or default to freestyle
+   */
+  private determineStrokeType(workout: any): string {
+    // HealthKit doesn't always provide stroke type, so we'll default to freestyle
+    // In a real implementation, this could be enhanced with workout metadata
+    return 'freestyle';
+  }
+
+  /**
+   * Get pool length (default to 25m, could be enhanced with user settings)
+   */
+  private getPoolLength(workout: any): number {
+    // Default to 25m pool, could be made configurable
+    return 25;
+  }
+
+  /**
+   * Calculate swimming pace (minutes per 100m)
+   */
+  private calculateSwimmingPace(duration: number, distance: number): number {
+    if (distance === 0) return 0;
+    
+    const pacePer100m = (duration / 60) * (100 / distance);
+    return Math.round(pacePer100m * 10) / 10; // Round to 1 decimal
+  }
+
+  /**
+   * Write swimming workout to HealthKit
+   */
+  async writeSwimmingWorkout(
+    startDate: Date,
+    endDate: Date,
+    totalEnergyBurned: number,
+    totalDistance: number,
+    strokeType?: string,
+    poolLength?: number
+  ): Promise<boolean> {
+    this.ensureInitialized();
+    this.ensureAuthorized(HEALTH_DATA_TYPES.WORKOUT);
+
+    try {
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+
+      // Swimming activity type = 46
+      const result = await this.healthKit.writeWorkout(
+        46, // HKWorkoutActivityType.Swimming
+        formatDateForHealthKit(startDate),
+        formatDateForHealthKit(endDate),
+        totalEnergyBurned,
+        totalDistance
+      );
+
+      return result.success;
+    } catch (error) {
+      console.error('[HealthKitService] Failed to write swimming workout:', error);
+      throw error;
+    }
+  }
+
   // Private helper methods
   private ensureInitialized(): void {
     if (!this.isInitialized) {

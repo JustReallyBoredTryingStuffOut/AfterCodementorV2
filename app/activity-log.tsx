@@ -1,17 +1,30 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Switch, TouchableOpacity, Modal } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { MapPin, Clock, Calendar, ArrowLeft } from "lucide-react-native";
+import { MapPin, Clock, Calendar, ArrowLeft, Zap, RefreshCw, TrendingUp, Activity, Plus } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { ActivityLog } from "@/types";
 import Button from "@/components/Button";
 import { Picker } from "@react-native-picker/picker";
 import NoteInput from "@/components/NoteInput";
+import SwimmingActivityCard from '@/components/SwimmingActivityCard';
+import SwimmingProgressTracker from '@/components/SwimmingProgressTracker';
+import ActivityCard from "@/components/ActivityCard";
+import ActivityDetailModal from "@/components/ActivityDetailModal";
+import { useTheme } from "@react-navigation/native";
+import { usePhotoStore } from "@/store/photoStore";
 
 export default function ActivityLogScreen() {
   const router = useRouter();
-  const { addActivityLog } = useHealthStore();
+  const { colors } = useTheme();
+  const { activityLogs, addActivityLog, removeActivityLog, syncSwimmingFromHealthKit, manualSyncSwimming } = useHealthStore();
+  const { progressPhotos } = usePhotoStore();
+  
+  const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isSwimmingSyncLoading, setIsSwimmingSyncLoading] = useState(false);
+  const [showSwimmingProgress, setShowSwimmingProgress] = useState(false);
   
   const [activityType, setActivityType] = useState("walking");
   const [duration, setDuration] = useState("30");
@@ -82,9 +95,42 @@ export default function ActivityLogScreen() {
   const handleGoBack = () => {
     router.back();
   };
-  
+
+  const handleSwimmingSync = async () => {
+    setIsSwimmingSyncLoading(true);
+    try {
+      const success = await manualSyncSwimming();
+      if (success) {
+        Alert.alert(
+          "Sync Complete",
+          "Swimming activities have been synced from Apple Health!",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Sync Failed",
+          "No new swimming activities found or sync failed. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      console.error("Error syncing swimming:", error);
+      Alert.alert(
+        "Sync Error",
+        "There was an error syncing swimming activities. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsSwimmingSyncLoading(false);
+    }
+  };
+
+  // Filter swimming activities
+  const swimmingActivities = activityLogs.filter(activity => activity.type === 'swimming');
+  const otherActivities = activityLogs.filter(activity => activity.type !== 'swimming');
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Stack.Screen 
         options={{
           title: "Log Activity",
@@ -98,131 +144,146 @@ export default function ActivityLogScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={styles.title}>Log Your Activity</Text>
-        <Text style={styles.subtitle}>Track your workouts and activities</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Activity Log</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Track your fitness activities</Text>
       </View>
-      
-      <View style={styles.formContainer}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Activity Type</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={activityType}
-              onValueChange={(itemValue) => setActivityType(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Walking" value="walking" />
-              <Picker.Item label="Running" value="running" />
-              <Picker.Item label="Cycling" value="cycling" />
-              <Picker.Item label="Swimming" value="swimming" />
-              <Picker.Item label="Hiking" value="hiking" />
-              <Picker.Item label="Other" value="other" />
-            </Picker>
-          </View>
-        </View>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Duration (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            value={duration}
-            onChangeText={setDuration}
-            keyboardType="numeric"
-            placeholder="Duration in minutes"
-          />
-        </View>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Distance (km)</Text>
-          <TextInput
-            style={styles.input}
-            value={distance}
-            onChangeText={setDistance}
-            keyboardType="numeric"
-            placeholder="Distance in kilometers"
-          />
-        </View>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Calories Burned</Text>
-          <TextInput
-            style={styles.input}
-            value={calories}
-            onChangeText={setCalories}
-            keyboardType="numeric"
-            placeholder="Estimated calories burned"
-          />
-        </View>
-        
-        <View style={styles.dateTimeContainer}>
-          <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-            <Text style={styles.label}>Date</Text>
-            <View style={styles.dateInputContainer}>
-              <Calendar size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.dateInput}
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-              />
+
+      {/* Swimming Section */}
+      {swimmingActivities.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Zap size={20} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Swimming Activities
+              </Text>
             </View>
+            <View style={styles.sectionActions}>
+              <TouchableOpacity
+                style={[styles.syncButton, { backgroundColor: colors.primary }]}
+                onPress={handleSwimmingSync}
+                disabled={isSwimmingSyncLoading}
+              >
+                <RefreshCw size={16} color="white" style={isSwimmingSyncLoading ? styles.rotating : undefined} />
+                <Text style={styles.syncButtonText}>
+                  {isSwimmingSyncLoading ? 'Syncing...' : 'Sync'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.progressButton, { borderColor: colors.border }]}
+                onPress={() => setShowSwimmingProgress(!showSwimmingProgress)}
+              >
+                <TrendingUp size={16} color={colors.primary} />
+                <Text style={[styles.progressButtonText, { color: colors.primary }]}>
+                  Progress
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {showSwimmingProgress ? (
+            <SwimmingProgressTracker activities={swimmingActivities} />
+          ) : (
+            swimmingActivities.map((activity) => (
+              <SwimmingActivityCard
+                key={activity.id}
+                activity={activity}
+                onPress={() => {
+                  setSelectedActivity(activity);
+                  setIsModalVisible(true);
+                }}
+              />
+            ))
+          )}
+        </View>
+      )}
+
+      {/* Other Activities Section */}
+      {otherActivities.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Other Activities
+            </Text>
           </View>
           
-          <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-            <Text style={styles.label}>Time</Text>
-            <View style={styles.dateInputContainer}>
-              <Clock size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.dateInput}
-                value={time}
-                onChangeText={setTime}
-                placeholder="HH:MM"
-              />
-            </View>
+          {otherActivities.map((activity) => (
+            <ActivityCard
+              key={activity.id}
+              activity={activity}
+              onPress={() => {
+                setSelectedActivity(activity);
+                setIsModalVisible(true);
+              }}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Empty State */}
+      {activityLogs.length === 0 && (
+        <View style={[styles.emptyContainer, { backgroundColor: colors.cardBackground }]}>
+          <Activity size={48} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No Activities Yet
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            Start tracking your fitness activities or sync from Apple Health
+          </Text>
+          
+          <View style={styles.emptyActions}>
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/log-cardio')}
+            >
+              <Text style={styles.primaryButtonText}>Log Activity</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: colors.border }]}
+              onPress={handleSwimmingSync}
+              disabled={isSwimmingSyncLoading}
+            >
+              <RefreshCw size={16} color={colors.primary} style={isSwimmingSyncLoading ? styles.rotating : undefined} />
+              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+                {isSwimmingSyncLoading ? 'Syncing...' : 'Sync from Health'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-        
-        <View style={styles.switchContainer}>
-          <Text style={styles.label}>Outdoor Activity?</Text>
-          <Switch
-            trackColor={{ false: colors.inactive, true: colors.primary }}
-            thumbColor="#FFFFFF"
-            value={isOutdoor}
-            onValueChange={setIsOutdoor}
+      )}
+
+      {/* Add Activity Button */}
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
+        onPress={() => router.push('/log-cardio')}
+      >
+        <Plus size={24} color="white" />
+        <Text style={styles.addButtonText}>Add Activity</Text>
+      </TouchableOpacity>
+
+      {/* Activity Detail Modal */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        {selectedActivity && (
+          <ActivityDetailModal
+            activity={selectedActivity}
+            onClose={() => {
+              setIsModalVisible(false);
+              setSelectedActivity(null);
+            }}
+            onDelete={() => {
+              removeActivityLog(selectedActivity.id);
+              setIsModalVisible(false);
+              setSelectedActivity(null);
+            }}
           />
-        </View>
-        
-        {isOutdoor && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
-            <View style={styles.dateInputContainer}>
-              <MapPin size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.dateInput}
-                value={location}
-                onChangeText={setLocation}
-                placeholder="Enter location"
-              />
-            </View>
-          </View>
         )}
-        
-        <View style={styles.notesContainer}>
-          <Text style={styles.label}>Notes</Text>
-          <NoteInput
-            initialValue={notes}
-            onSave={setNotes}
-            placeholder="Add notes about this activity..."
-            multiline
-          />
-        </View>
-      </View>
-      
-      <Button
-        title="Save Activity"
-        onPress={handleSave}
-        style={styles.saveButton}
-      />
+      </Modal>
     </ScrollView>
   );
 }
@@ -323,5 +384,128 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  syncButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  progressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  progressButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  rotating: {
+    transform: [{ rotate: '360deg' }],
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

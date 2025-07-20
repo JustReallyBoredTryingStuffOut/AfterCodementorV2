@@ -94,47 +94,34 @@ export default function GdprConsentModal({ onAccept, onDecline }: GdprConsentMod
               Data We Collect
             </Text>
             <Text style={[styles.paragraph, { color: colors.text }]}>
-              • Profile information (name, age, weight, height)
-              {"
-"}• Workout and exercise data
-              {"
-"}• Nutrition and meal information
-              {"
-"}• Health metrics (steps, weight logs)
-              {"
-"}• Photos you choose to upload
-              {"
-"}• App usage information
+              • Profile information (name, age, weight, height){'\n'}
+              • Workout and exercise data{'\n'}
+              • Nutrition and meal information{'\n'}
+              • Health metrics (steps, weight logs){'\n'}
+              • Photos you choose to upload{'\n'}
+              • App usage information
             </Text>
             
             <Text style={[styles.subtitle, { color: colors.text }]}>
               How We Protect Your Data
             </Text>
             <Text style={[styles.paragraph, { color: colors.text }]}>
-              • All sensitive data is encrypted
-              {"
-"}• Your data is stored locally on your device
-              {"
-"}• We do not share your personal data with third parties
-              {"
-"}• You can export or delete your data at any time
+              • All sensitive data is encrypted{'\n'}
+              • Your data is stored locally on your device{'\n'}
+              • We do not share your personal data with third parties{'\n'}
+              • You can export or delete your data at any time
             </Text>
             
             <Text style={[styles.subtitle, { color: colors.text }]}>
               Your Rights
             </Text>
             <Text style={[styles.paragraph, { color: colors.text }]}>
-              Under GDPR and other privacy regulations, you have the right to:
-              {"
-"}• Access your personal data
-              {"
-"}• Correct inaccurate data
-              {"
-"}• Delete your data
-              {"
-"}• Export your data
-              {"
-"}• Withdraw consent at any time
+              Under GDPR and other privacy regulations, you have the right to:{'\n'}
+              • Access your personal data{'\n'}
+              • Correct inaccurate data{'\n'}
+              • Delete your data{'\n'}
+              • Export your data{'\n'}
+              • Withdraw consent at any time
             </Text>
           </ScrollView>
           

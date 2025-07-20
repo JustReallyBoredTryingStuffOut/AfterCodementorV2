@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { useGamificationStore } from '@/store/gamificationStore';
 import { useMacroStore } from '@/store/macroStore';
 import { useWorkoutStore } from '@/store/workoutStore';
+import { useHealthStore } from '@/store/healthStore';
 import { Zap, Award, Trophy, X, User, Weight, Ruler, Calendar, Activity, ArrowRight, ChevronRight, Brain, Sparkles, Heart, AlertTriangle, Check, ArrowLeft } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import CustomDropdown from '@/components/CustomDropdown';
@@ -108,11 +109,15 @@ export default function RootLayout() {
         try {
           // Refresh HealthKit data
           const healthStore = useHealthStore.getState();
-          if (healthStore.syncWeightFromHealthKit) {
-            healthStore.syncWeightFromHealthKit();
+          if (healthStore && healthStore.syncWeightFromHealthKit) {
+            healthStore.syncWeightFromHealthKit().catch(err => 
+              console.error('Error syncing weight from HealthKit:', err)
+            );
           }
-          if (healthStore.syncStepsFromHealthKit) {
-            healthStore.syncStepsFromHealthKit();
+          if (healthStore && healthStore.syncStepsFromHealthKit) {
+            healthStore.syncStepsFromHealthKit().catch(err => 
+              console.error('Error syncing steps from HealthKit:', err)
+            );
           }
         } catch (error) {
           console.error('Error refreshing data on foreground:', error);

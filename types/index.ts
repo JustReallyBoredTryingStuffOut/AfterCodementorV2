@@ -452,12 +452,25 @@ export interface HealthDevice {
 
 export interface ActivityLog {
   id: string;
-  date: string;
   type: 'walking' | 'running' | 'cycling' | 'swimming' | 'workout' | 'other';
-  duration: number;
-  distance: number;
-  calories: number;
+  date: string;
+  duration: number; // in minutes
+  distance?: number; // in meters
+  calories?: number;
+  source?: string;
+  deviceId?: string;
   notes?: string;
+  // Swimming-specific metrics
+  swimmingMetrics?: {
+    laps: {
+      total: number;
+      pool25m: number;
+      pool50m: number;
+    };
+    strokeType: string;
+    poolLength: number;
+    averagePace: number; // minutes per 100m
+  };
 }
 
 export interface DeviceSync {

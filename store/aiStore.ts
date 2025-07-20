@@ -39,6 +39,25 @@ export interface UserMood {
   preference?: string;
 }
 
+export interface AIPersonality {
+  name: string;
+  personality: 'motivational' | 'technical' | 'friendly' | 'strict';
+  expertise: 'strength' | 'cardio' | 'flexibility' | 'nutrition' | 'general';
+  communicationStyle: 'casual' | 'professional' | 'encouraging';
+  avatar?: string;
+}
+
+export interface UserProfile {
+  preferredName: string;
+  fitnessGoals: string[];
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  preferredWorkoutTime: 'morning' | 'afternoon' | 'evening';
+  motivationStyle: 'achievement' | 'social' | 'health' | 'appearance';
+  favoriteExercises: string[];
+  dislikedExercises: string[];
+  moodHistory: UserMood[];
+}
+
 export interface WorkoutAnalysis {
   averageDuration: number;
   averageRating: number;
@@ -73,6 +92,13 @@ interface AiState {
   chats: AiChat[];
   messages: ChatMessage[];
   isLoading: boolean;
+  
+  // Personalization
+  aiPersonality: AIPersonality;
+  userProfile: UserProfile;
+  conversationMemory: string[];
+  moodBasedResponses: boolean;
+  hasCompletedOnboarding: boolean;
   
   // Actions
   addGoal: (goal: Goal) => void;
@@ -111,6 +137,17 @@ interface AiState {
   addMessage: (message: ChatMessage) => void;
   setLoading: (loading: boolean) => void;
   clearMessages: () => void;
+  
+  // Personalization actions
+  setAIPersonality: (personality: AIPersonality) => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
+  addToConversationMemory: (memory: string) => void;
+  clearConversationMemory: () => void;
+  toggleMoodBasedResponses: (enabled: boolean) => void;
+  getMoodBasedRecommendation: () => string;
+  generatePersonalizedGreeting: () => string;
+        setOnboardingComplete: (completed: boolean) => void;
+      resetOnboarding: () => void;
 }
 
 // Helper function to clean markdown formatting from text
@@ -134,6 +171,28 @@ export const useAiStore = create<AiState>()(
       chats: [],
       messages: [],
       isLoading: false,
+      
+      // Personalization defaults
+      aiPersonality: {
+        name: "Coach Alex",
+        personality: 'motivational',
+        expertise: 'general',
+        communicationStyle: 'encouraging',
+        avatar: undefined
+      },
+      userProfile: {
+        preferredName: "",
+        fitnessGoals: [],
+        experienceLevel: 'beginner',
+        preferredWorkoutTime: 'evening',
+        motivationStyle: 'health',
+        favoriteExercises: [],
+        dislikedExercises: [],
+        moodHistory: []
+      },
+      conversationMemory: [],
+      moodBasedResponses: true,
+      hasCompletedOnboarding: false,
       
       addGoal: (goal) => set((state) => ({
         goals: [...state.goals, goal]
@@ -882,6 +941,129 @@ export const useAiStore = create<AiState>()(
         set((state) => ({ messages: [...state.messages, message] })),
       setLoading: (loading) => set({ isLoading: loading }),
       clearMessages: () => set({ messages: [] }),
+      
+      // Personalization actions
+      setAIPersonality: (personality) => set({ aiPersonality: personality }),
+      
+      updateUserProfile: (updates) => set((state) => ({
+        userProfile: { ...state.userProfile, ...updates }
+      })),
+      
+      addToConversationMemory: (memory) => set((state) => ({
+        conversationMemory: [...state.conversationMemory, memory]
+      })),
+      
+      clearConversationMemory: () => set({ conversationMemory: [] }),
+      
+      toggleMoodBasedResponses: (enabled) => set({ moodBasedResponses: enabled }),
+      
+      getMoodBasedRecommendation: () => {
+        const { userMood, userProfile } = get();
+        
+        if (!userMood) return "How are you feeling today? This helps me give you better workout recommendations.";
+        
+        const mood = userMood.mood;
+        const preference = userMood.preference;
+        
+        // Enhanced mood-based recommendations using existing mood data
+        const recommendations = {
+          great: {
+            challenging: "You're feeling amazing! Perfect time for a high-intensity workout. Push your limits today! 💪",
+            energizing: "Your energy is through the roof! Let's channel that into an energizing full-body session.",
+            shorter: "Even with great energy, sometimes shorter, focused workouts are best. Quality over quantity!"
+          },
+          good: {
+            challenging: "Good mood + challenging workout = amazing results! Ready to crush it?",
+            energizing: "Your positive energy is perfect for a balanced, energizing workout.",
+            shorter: "Good mood calls for a focused, efficient workout. Let's make every minute count!"
+          },
+          okay: {
+            challenging: "Feeling okay? A challenging workout might be just what you need to boost your mood!",
+            energizing: "Let's turn that 'okay' into 'great' with an energizing workout!",
+            shorter: "Sometimes a shorter, enjoyable workout is exactly what you need when feeling just okay."
+          },
+          tired: {
+            challenging: "Feeling tired? Listen to your body - a lighter workout might be perfect today.",
+            energizing: "Tired but want to move? A gentle, energizing session could help boost your energy.",
+            shorter: "When tired, shorter workouts are often better. Focus on form and enjoy the movement."
+          },
+          bad: {
+            challenging: "Having a tough day? Exercise can be great medicine. Start gentle and see how you feel.",
+            energizing: "Movement can help shift your mood. Even a light, energizing walk can make a difference.",
+            shorter: "On bad days, sometimes just showing up is enough. A short, gentle workout might help."
+          }
+        };
+        
+        return recommendations[mood]?.[preference] || 
+               "Remember: any movement is better than none. Listen to your body and do what feels right.";
+      },
+      
+      generatePersonalizedGreeting: () => {
+        const { aiPersonality, userProfile, userMood } = get();
+        const { name: aiName, personality } = aiPersonality;
+        const { preferredName, experienceLevel } = userProfile;
+        
+        const timeOfDay = new Date().getHours();
+        let greeting = "";
+        
+        // Time-based greeting
+        if (timeOfDay < 12) {
+          greeting = "Good morning";
+        } else if (timeOfDay < 17) {
+          greeting = "Good afternoon";
+        } else {
+          greeting = "Good evening";
+        }
+        
+        // Add name if available
+        if (preferredName) {
+          greeting += ` ${preferredName}`;
+        }
+        
+        // Personality-based greeting
+        switch (personality) {
+          case 'motivational':
+            greeting += "! 💪 Ready to crush your fitness goals today?";
+            break;
+          case 'technical':
+            greeting += "! Let's optimize your workout routine for maximum results.";
+            break;
+          case 'friendly':
+            greeting += "! How's your fitness journey going? I'm here to help! 😊";
+            break;
+          case 'strict':
+            greeting += "! Time to get serious about your fitness. What's your plan today?";
+            break;
+          default:
+            greeting += "! How can I help with your fitness goals today?";
+        }
+        
+        // Add mood-based context if available
+        if (userMood) {
+          const moodDate = new Date(userMood.date);
+          const today = new Date();
+          
+          if (moodDate.toDateString() === today.toDateString()) {
+            switch (userMood.mood) {
+              case 'great':
+                greeting += " I can see you're feeling great today - perfect energy for a workout!";
+                break;
+              case 'tired':
+                greeting += " I notice you're feeling tired. Remember, it's okay to take it easy when needed.";
+                break;
+              case 'bad':
+                greeting += " I see you're having a tough day. Movement can help - even a gentle workout might lift your spirits.";
+                break;
+            }
+          }
+        }
+        
+        return greeting;
+      },
+      
+      setOnboardingComplete: (completed) => set({ hasCompletedOnboarding: completed }),
+      
+      resetOnboarding: () => set({ hasCompletedOnboarding: false }),
     }),
     {
       name: "ai-storage",
