@@ -441,40 +441,48 @@ export default function HealthDevicesScreen() {
           
           <TouchableOpacity 
             style={styles.serviceItem}
-            onPress={() => {
-              Alert.alert(
-                "Apple Health",
-                "This will allow the app to read and write health data from Apple Health. Would you like to connect?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Connect", 
-                    onPress: () => {
-                      // On iOS, this would open the Health app permissions screen
-                      // For this simulation, we'll just show a success message
-                      Alert.alert(
-                        "Health Access Requested",
-                        "Please open the Health app and approve the requested permissions.",
-                        [
-                          { 
-                            text: "OK",
-                            onPress: () => {
-                              // Simulate the user approving the permissions
-                              setTimeout(() => {
-                                Alert.alert(
-                                  "Apple Health Connected",
-                                  "Your app is now connected to Apple Health. Your health data will be synced automatically.",
-                                  [{ text: "OK" }]
-                                );
-                              }, 1000);
-                            }
-                          }
-                        ]
-                      );
-                    }
-                  }
-                ]
-              );
+            onPress={async () => {
+              if (Platform.OS !== 'ios') {
+                Alert.alert(
+                  "Apple Health",
+                  "Apple Health is only available on iOS devices.",
+                  [{ text: "OK" }]
+                );
+                return;
+              }
+
+              try {
+                // Show loading alert
+                Alert.alert(
+                  "Connecting to Apple Health",
+                  "Requesting permissions and syncing data...",
+                  []
+                );
+
+                // Initialize HealthKit and request permissions
+                const { syncWeightFromHealthKit, syncStepsFromHealthKit } = useHealthStore.getState();
+                
+                // Sync weight data
+                await syncWeightFromHealthKit();
+                
+                // Sync step data
+                await syncStepsFromHealthKit();
+                
+                // Show success message
+                Alert.alert(
+                  "Apple Health Connected",
+                  "Successfully connected to Apple Health! Your weight and step data have been synced.",
+                  [{ text: "OK" }]
+                );
+                
+              } catch (error) {
+                console.error('Error connecting to Apple Health:', error);
+                Alert.alert(
+                  "Connection Failed",
+                  "There was an error connecting to Apple Health. Please check your permissions in the Health app.",
+                  [{ text: "OK" }]
+                );
+              }
             }}
           >
             <View style={styles.serviceInfo}>
@@ -492,24 +500,19 @@ export default function HealthDevicesScreen() {
           <TouchableOpacity 
             style={styles.serviceItem}
             onPress={() => {
+              if (Platform.OS !== 'android') {
+                Alert.alert(
+                  "Google Fit",
+                  "Google Fit is only available on Android devices.",
+                  [{ text: "OK" }]
+                );
+                return;
+              }
+
               Alert.alert(
                 "Google Fit",
-                "This will allow the app to read and write health data from Google Fit. Would you like to connect?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Connect", 
-                    onPress: () => {
-                      // On Android, this would open the Google Fit permissions screen
-                      // For this simulation, we'll just show a success message
-                      Alert.alert(
-                        "Google Fit Connected",
-                        "Your app is now connected to Google Fit. Your health data will be synced automatically.",
-                        [{ text: "OK" }]
-                      );
-                    }
-                  }
-                ]
+                "Google Fit integration is not yet implemented. This feature will be available in a future update.",
+                [{ text: "OK" }]
               );
             }}
           >
