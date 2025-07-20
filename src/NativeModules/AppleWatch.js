@@ -284,7 +284,12 @@ class AppleWatchService {
 
   async getAppleWatchStatus() {
     if (!this.isAvailable) {
-      return 'Native Module Not Available';
+      return { 
+        isReachable: false, 
+        isPaired: false, 
+        isInstalled: false,
+        status: 'Native Module Not Available'
+      };
     }
 
     try {
@@ -292,7 +297,12 @@ class AppleWatchService {
       return result;
     } catch (error) {
       console.error('Failed to get Apple Watch status:', error);
-      return { isReachable: false, isPaired: false, isInstalled: false };
+      return { 
+        isReachable: false, 
+        isPaired: false, 
+        isInstalled: false,
+        status: 'Error'
+      };
     }
   }
 

@@ -67,11 +67,15 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
     if (Platform.OS === 'ios') {
       try {
         const isReachable = await AppleWatch.isAppleWatchReachable();
+        const status = await AppleWatch.getAppleWatchStatus();
+        console.log('Apple Watch Status:', status);
         setIsAppleWatchConnected(isReachable);
       } catch (error) {
         console.error('Error checking Apple Watch connection:', error);
         setIsAppleWatchConnected(false);
       }
+    } else {
+      setIsAppleWatchConnected(false);
     }
   };
 
@@ -82,9 +86,12 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
     if (Platform.OS === 'ios' && isAppleWatchConnected) {
       try {
         await AppleWatch.startRestTimerOnWatch(timeLeft);
+        console.log('Started rest timer on Apple Watch');
       } catch (error) {
         console.error('Error starting timer on Apple Watch:', error);
       }
+    } else {
+      console.log('Apple Watch not available - using local timer only');
     }
     
     // Animate the start
@@ -109,6 +116,7 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
     if (Platform.OS === 'ios' && isAppleWatchConnected) {
       try {
         await AppleWatch.stopRestTimerOnWatch();
+        console.log('Stopped rest timer on Apple Watch');
       } catch (error) {
         console.error('Error stopping timer on Apple Watch:', error);
       }
@@ -124,6 +132,7 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
     if (Platform.OS === 'ios' && isAppleWatchConnected) {
       try {
         AppleWatch.stopRestTimerOnWatch();
+        console.log('Reset rest timer on Apple Watch');
       } catch (error) {
         console.error('Error stopping timer on Apple Watch:', error);
       }
@@ -139,9 +148,12 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
       try {
         await AppleWatch.stopRestTimerOnWatch();
         await AppleWatch.announceRestComplete();
+        console.log('Completed rest timer on Apple Watch');
       } catch (error) {
         console.error('Error completing timer on Apple Watch:', error);
       }
+    } else {
+      console.log('Rest timer completed locally');
     }
     
     // Animate completion
@@ -231,8 +243,13 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
             <View style={styles.watchStatus}>
               <Watch size={16} color={isAppleWatchConnected ? colors.primary : colors.textSecondary} />
               <Text style={[styles.watchStatusText, { color: colors.textSecondary }]}>
-                {isAppleWatchConnected ? 'Apple Watch Connected' : 'Apple Watch Not Connected'}
+                {isAppleWatchConnected ? 'Apple Watch Connected' : 'Apple Watch Not Available'}
               </Text>
+              {isAppleWatchConnected && (
+                <Text style={[styles.watchFeatureText, { color: colors.primary }]}>
+                  • Timer syncs with Apple Watch
+                </Text>
+              )}
             </View>
           )}
 
@@ -350,6 +367,11 @@ const styles = StyleSheet.create({
   watchStatusText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  watchFeatureText: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 2,
   },
   timerContainer: {
     alignItems: 'center',

@@ -35,11 +35,16 @@ export default function AppleWatchTestScreen() {
     try {
       // Test 1: Check if Apple Watch is reachable
       const isReachable = await AppleWatchService.isAppleWatchReachable();
-      Alert.alert('Watch Status', `Apple Watch reachable: ${isReachable ? 'Yes' : 'No'}`);
-
-      // Test 2: Get watch status
+      
+      // Test 2: Get detailed watch status
       const status = await AppleWatchService.getAppleWatchStatus();
       console.log('Apple Watch Status:', status);
+      
+      let statusMessage = `Apple Watch reachable: ${isReachable ? 'Yes' : 'No'}\n`;
+      statusMessage += `Status: ${status.status || 'Unknown'}\n`;
+      statusMessage += `Native module available: ${AppleWatchService.isAvailable ? 'Yes' : 'No'}`;
+      
+      Alert.alert('Watch Status', statusMessage);
 
       // Test 3: Try to start rest timer (will fail without physical watch, but tests the bridge)
       try {
