@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Pla
 import { Flame, RefreshCw, Zap, Watch, AlertTriangle } from "lucide-react-native";
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
-import HealthKitService from "@/src/services/HealthKitService";
-import { HEALTH_DATA_TYPES } from "@/types/health";
+import HealthKit from "@/src/NativeModules/HealthKit";
 
 type CaloriesTrackerProps = {
   compact?: boolean;
@@ -32,11 +31,8 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
     setError(null);
     
     try {
-      // Initialize HealthKit service first
-      await HealthKitService.initialize();
-      
       // Check if HealthKit is available
-      const isAvailable = await HealthKitService.isHealthDataAvailable();
+      const isAvailable = await HealthKit.isHealthDataAvailable();
       
       if (!isAvailable) {
         setError("HealthKit not available on this device");
@@ -45,19 +41,30 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
       }
       
       // Request authorization for active energy burned (calories)
-      const authResult = await HealthKitService.requestAuthorization([HEALTH_DATA_TYPES.ACTIVE_ENERGY_BURNED]);
+      const authResult = await HealthKit.requestAuthorization(['calories']);
       
-      if (!authResult) {
+      if (!authResult.authorized) {
         setError("Calories access denied. Please enable Health permissions in Settings.");
         setDataSource("unknown");
         return;
       }
       
-      // Get today's active calories
-      const calories = await HealthKitService.getTodayActiveCalories();
+      // Get today's active calories using the same pattern as step counter
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      if (calories >= 0) {
-        setCurrentCalories(calories);
+      // Format dates properly for ISO8601DateFormatter
+      const formatDateForHealthKit = (date: Date) => {
+        return date.toISOString().split('.')[0] + 'Z';
+      };
+      
+      const caloriesResult = await HealthKit.getActiveEnergyBurned(
+        formatDateForHealthKit(today),
+        formatDateForHealthKit(new Date())
+      );
+      
+      if (caloriesResult.success) {
+        setCurrentCalories(caloriesResult.calories);
         setDataSource("healthKit");
         setError(null);
       } else {
