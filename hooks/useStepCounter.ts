@@ -86,9 +86,9 @@ export default function useStepCounter() {
               );
               
               if (stepsResult.success) {
-                console.log('[useStepCounter] HealthKit steps result:', stepsResult);
-                console.log('[useStepCounter] Steps value:', stepsResult.steps, 'Type:', typeof stepsResult.steps);
-                setCurrentStepCount(stepsResult.steps);
+                // Ensure steps is a proper number
+                const steps = typeof stepsResult.steps === 'string' ? parseInt(stepsResult.steps, 10) : Number(stepsResult.steps);
+                setCurrentStepCount(steps);
                 
                 // Get distance data
                 let distanceResult = { success: false, distance: 0 };
@@ -116,9 +116,9 @@ export default function useStepCounter() {
                 const stepLog = {
                   id: today.toISOString(),
                   date: today.toISOString(),
-                  steps: stepsResult.steps,
-                  distance: distanceResult.success ? distanceResult.distance : 0,
-                  calories: caloriesResult.success ? caloriesResult.calories : 0,
+                  steps: steps, // Use the properly converted number
+                  distance: distanceResult.success ? Number(distanceResult.distance) : 0,
+                  calories: caloriesResult.success ? Number(caloriesResult.calories) : 0,
                   source: "Apple Health"
                 };
                 
@@ -128,13 +128,15 @@ export default function useStepCounter() {
               // Set up observer for step count changes
               healthKitObserverRef.current = HealthKit.observeStepCount((result) => {
                 if (result.success) {
-                  setCurrentStepCount(result.steps);
+                  // Ensure steps is a proper number
+                  const steps = typeof result.steps === 'string' ? parseInt(result.steps, 10) : Number(result.steps);
+                  setCurrentStepCount(steps);
                   
                   // Log the updated steps
                   const stepLog = {
                     id: today.toISOString(),
                     date: today.toISOString(),
-                    steps: result.steps,
+                    steps: steps,
                     distance: 0, // Will be updated by HealthKit
                     calories: 0, // Will be updated by HealthKit
                     source: "Apple Health"
@@ -249,7 +251,9 @@ export default function useStepCounter() {
         );
         
         if (stepsResult.success) {
-          setCurrentStepCount(stepsResult.steps);
+          // Ensure steps is a proper number
+          const steps = typeof stepsResult.steps === 'string' ? parseInt(stepsResult.steps, 10) : Number(stepsResult.steps);
+          setCurrentStepCount(steps);
         }
       } else {
         setError("Health data access denied. Please enable Health permissions in Settings.");
@@ -308,7 +312,9 @@ export default function useStepCounter() {
             );
             
             if (stepsResult.success) {
-              setCurrentStepCount(stepsResult.steps);
+              // Ensure steps is a proper number
+              const steps = typeof stepsResult.steps === 'string' ? parseInt(stepsResult.steps, 10) : Number(stepsResult.steps);
+              setCurrentStepCount(steps);
               
               // Get distance data
               let distanceResult = { success: false, distance: 0 };
@@ -336,9 +342,9 @@ export default function useStepCounter() {
               const stepLog = {
                 id: today.toISOString(),
                 date: today.toISOString(),
-                steps: stepsResult.steps,
-                distance: distanceResult.success ? distanceResult.distance : 0,
-                calories: caloriesResult.success ? caloriesResult.calories : 0,
+                steps: Number(stepsResult.steps),
+                distance: distanceResult.success ? Number(distanceResult.distance) : 0,
+                calories: caloriesResult.success ? Number(caloriesResult.calories) : 0,
                 source: "Apple Health"
               };
               
@@ -421,11 +427,10 @@ export default function useStepCounter() {
           formatDateForHealthKit(new Date())
         );
         
-        console.log('[useStepCounter] Manual sync steps result:', stepsResult);
-        console.log('[useStepCounter] Manual sync steps value:', stepsResult.steps, 'Type:', typeof stepsResult.steps);
-        
         if (stepsResult.success) {
-          setCurrentStepCount(stepsResult.steps);
+          // Ensure steps is a proper number
+          const steps = typeof stepsResult.steps === 'string' ? parseInt(stepsResult.steps, 10) : Number(stepsResult.steps);
+          setCurrentStepCount(steps);
           
           // Get additional data
           let distanceResult = { success: false, distance: 0 };
@@ -452,9 +457,9 @@ export default function useStepCounter() {
           const stepLog = {
             id: today.toISOString(),
             date: today.toISOString(),
-            steps: stepsResult.steps,
-            distance: distanceResult.success ? distanceResult.distance : 0,
-            calories: caloriesResult.success ? caloriesResult.calories : 0,
+            steps: steps, // Use the properly converted number
+            distance: distanceResult.success ? Number(distanceResult.distance) : 0,
+            calories: caloriesResult.success ? Number(caloriesResult.calories) : 0,
             source: "Apple Health"
           };
           

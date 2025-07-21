@@ -52,9 +52,6 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
   
   const stepGoal = getStepGoal();
   
-  // Debug logging to check data corruption
-  console.log('[StepCounter] Raw step count:', currentStepCount, 'Type:', typeof currentStepCount);
-  
   // Calculate progress percentage
   const progressPercentage = Math.min(100, (currentStepCount / stepGoal) * 100);
   
