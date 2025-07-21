@@ -1894,8 +1894,7 @@ GOAL CREATION EXAMPLES:
         
       case 'chest':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => mg.name === 'Chest') &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => mg.name === 'Chest')
         ).slice(0, 4);
         
       case 'back':
@@ -4492,7 +4491,7 @@ GOAL CREATION EXAMPLES:
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{
-          title: "AI Assistant",
+          title: "Coach Alex",
           headerShown: true,
           headerLeft: () => (
             <TouchableOpacity 
@@ -4718,6 +4717,13 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    marginLeft: 8,
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chatListButton: {
     paddingVertical: 6,
