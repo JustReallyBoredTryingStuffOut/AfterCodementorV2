@@ -1333,6 +1333,42 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
+      // Check if it's a nutrition request
+      const nutritionResponse = await handleNutritionRequest(userInput);
+      if (nutritionResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: nutritionResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's an advanced analytics request
+      const advancedAnalyticsResponse = await handleAdvancedAnalyticsRequest(userInput);
+      if (advancedAnalyticsResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: advancedAnalyticsResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's a recovery recommendations request
+      const recoveryResponse = await handleRecoveryRecommendationsRequest(userInput);
+      if (recoveryResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: recoveryResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Prepare messages for API
       const apiMessages = currentChat.messages
         .filter(msg => msg.role !== "system") // Filter out system messages
@@ -2289,41 +2325,117 @@ GOAL CREATION EXAMPLES:
   const handleNutritionRequest = async (message: string): Promise<string> => {
     const lowerMessage = message.toLowerCase();
     
-    if (lowerMessage.includes('nutrition') || lowerMessage.includes('diet') || lowerMessage.includes('food') || lowerMessage.includes('meal')) {
-      const guidance = getNutritionGuidance();
-      const macros = getMacroRecommendations();
+    if (lowerMessage.includes('nutrition') || lowerMessage.includes('diet') || 
+        lowerMessage.includes('food') || lowerMessage.includes('meal') ||
+        lowerMessage.includes('macro') || lowerMessage.includes('calorie') ||
+        lowerMessage.includes('protein') || lowerMessage.includes('carb') ||
+        lowerMessage.includes('fat') || lowerMessage.includes('supplement')) {
       
-      let response = "🥗 **Nutrition Guidance**\n\n";
-      response += guidance.general.disclaimer + "\n\n";
-      
-      response += "**General Principles:**\n";
-      guidance.general.principles.forEach(principle => {
-        response += `• ${principle}\n`;
-      });
-      
-      response += "\n**Macro Recommendations:**\n";
-      response += `• Calories: ${macros.calories} per day\n`;
-      response += `• Protein: ${macros.protein}g per day\n`;
-      response += `• Carbs: ${macros.carbs}g per day\n`;
-      response += `• Fat: ${macros.fat}g per day\n\n`;
-      response += macros.disclaimer + "\n\n";
-      
-      response += "**Pre-Workout (${guidance.preWorkout.timing}):**\n";
-      guidance.preWorkout.suggestions.forEach(suggestion => {
-        response += `• ${suggestion}\n`;
-      });
-      
-      response += "\n**Post-Workout (${guidance.postWorkout.timing}):**\n";
-      guidance.postWorkout.suggestions.forEach(suggestion => {
-        response += `• ${suggestion}\n`;
-      });
-      
-      response += "\n**Hydration:**\n";
-      response += `• Daily: ${guidance.hydration.daily}\n`;
-      response += `• During workout: ${guidance.hydration.duringWorkout}\n`;
-      response += `• After workout: ${guidance.hydration.afterWorkout}\n`;
-      
-      return response;
+      try {
+        const { userProfile } = useAiStore.getState();
+        const { macroGoals, currentMacros } = useMacroStore.getState();
+        
+        let response = `🍎 **Nutrition Guidance**\n\n`;
+        
+        // Get user's fitness goals to provide relevant advice
+        const fitnessGoals = userProfile?.fitnessGoals || [];
+        
+        // Specific nutrition topics
+        if (lowerMessage.includes('protein')) {
+          response += `**Protein Guide:**\n`;
+          response += `• Aim for 1.6-2.2g protein per kg body weight\n`;
+          response += `• Best sources: chicken, fish, eggs, lean beef\n`;
+          response += `• Plant sources: beans, lentils, tofu, quinoa\n`;
+          response += `• Distribute protein across all meals\n`;
+          response += `• Consume protein within 2 hours post-workout\n\n`;
+        } else if (lowerMessage.includes('carb') || lowerMessage.includes('carbohydrate')) {
+          response += `**Carbohydrate Guide:**\n`;
+          response += `• Complex carbs: oats, brown rice, sweet potatoes\n`;
+          response += `• Simple carbs: fruits, honey (post-workout)\n`;
+          response += `• Timing: carbs before and after workouts\n`;
+          response += `• Fiber: aim for 25-30g daily\n`;
+          response += `• Choose whole grains over refined\n\n`;
+        } else if (lowerMessage.includes('fat')) {
+          response += `**Healthy Fats Guide:**\n`;
+          response += `• Omega-3: fish, flaxseeds, walnuts\n`;
+          response += `• Monounsaturated: olive oil, avocados, nuts\n`;
+          response += `• Saturated: limit to 10% of calories\n`;
+          response += `• Avoid trans fats completely\n`;
+          response += `• Include fats for hormone production\n\n`;
+        } else if (lowerMessage.includes('supplement')) {
+          response += `**Supplement Recommendations:**\n`;
+          response += `• Protein powder: if struggling to meet protein goals\n`;
+          response += `• Creatine: 5g daily for strength gains\n`;
+          response += `• Vitamin D: if limited sun exposure\n`;
+          response += `• Omega-3: if not eating fish regularly\n`;
+          response += `• Multivitamin: as insurance policy\n\n`;
+        } else if (lowerMessage.includes('meal') || lowerMessage.includes('plan')) {
+          response += `**Meal Planning Tips:**\n`;
+          response += `• Plan meals 1 week ahead\n`;
+          response += `• Prep protein sources in bulk\n`;
+          response += `• Cook grains and vegetables in advance\n`;
+          response += `• Use containers for portion control\n`;
+          response += `• Include variety to prevent boredom\n\n`;
+        } else {
+          // General nutrition based on goals
+          if (fitnessGoals.includes('weight loss')) {
+            response += `**Weight Loss Nutrition:**\n`;
+            response += `• Create a 300-500 calorie deficit\n`;
+            response += `• High protein: 1.6-2.2g per kg body weight\n`;
+            response += `• Moderate carbs: 2-3g per kg body weight\n`;
+            response += `• Healthy fats: 0.8-1.2g per kg body weight\n`;
+            response += `• Eat plenty of vegetables and fruits\n`;
+            response += `• Stay hydrated with water\n`;
+            response += `• Limit processed foods and added sugars\n\n`;
+          } else if (fitnessGoals.includes('muscle gain')) {
+            response += `**Muscle Gain Nutrition:**\n`;
+            response += `• Eat in a 200-500 calorie surplus\n`;
+            response += `• High protein: 1.6-2.2g per kg body weight\n`;
+            response += `• Higher carbs: 4-7g per kg body weight\n`;
+            response += `• Moderate fats: 0.8-1.2g per kg body weight\n`;
+            response += `• Eat 4-6 meals per day\n`;
+            response += `• Include protein with every meal\n`;
+            response += `• Post-workout nutrition is crucial\n\n`;
+          } else if (fitnessGoals.includes('strength')) {
+            response += `**Strength Training Nutrition:**\n`;
+            response += `• Adequate protein: 1.6-2.2g per kg body weight\n`;
+            response += `• Sufficient carbs for energy: 3-5g per kg body weight\n`;
+            response += `• Healthy fats for hormone production\n`;
+            response += `• Creatine supplementation recommended\n`;
+            response += `• Pre-workout meal 2-3 hours before\n`;
+            response += `• Post-workout protein within 2 hours\n\n`;
+          } else {
+            response += `**General Nutrition Tips:**\n`;
+            response += `• Eat a balanced diet with variety\n`;
+            response += `• Stay hydrated throughout the day\n`;
+            response += `• Include protein with every meal\n`;
+            response += `• Choose whole foods over processed\n`;
+            response += `• Listen to your body's hunger cues\n`;
+            response += `• Don't skip meals\n\n`;
+          }
+        }
+        
+        // Add macro information if available
+        if (macroGoals && currentMacros) {
+          response += `**Your Macro Goals:**\n`;
+          response += `• Protein: ${macroGoals.protein}g\n`;
+          response += `• Carbs: ${macroGoals.carbs}g\n`;
+          response += `• Fat: ${macroGoals.fat}g\n`;
+          response += `• Calories: ${macroGoals.calories}kcal\n\n`;
+          
+          response += `**Today's Progress:**\n`;
+          response += `• Protein: ${currentMacros.protein}g / ${macroGoals.protein}g\n`;
+          response += `• Carbs: ${currentMacros.carbs}g / ${macroGoals.carbs}g\n`;
+          response += `• Fat: ${currentMacros.fat}g / ${macroGoals.fat}g\n`;
+          response += `• Calories: ${currentMacros.calories}kcal / ${macroGoals.calories}kcal\n\n`;
+        }
+        
+        response += `**Need help with meal planning or specific nutrition questions?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble accessing nutrition information right now. Try asking about specific nutrition topics like "meal planning" or "protein intake".`;
+      }
     }
     
     return null;
@@ -4850,6 +4962,278 @@ GOAL CREATION EXAMPLES:
         }
       } catch (error) {
         return `I'm having trouble explaining exercises right now. Try asking about a specific exercise like "explain squats" or "how to bench press".`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handleAdvancedAnalyticsRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('analytics') || lowerMessage.includes('analysis') || 
+        lowerMessage.includes('trends') || lowerMessage.includes('performance') ||
+        lowerMessage.includes('progress') || lowerMessage.includes('insights') ||
+        lowerMessage.includes('stats') || lowerMessage.includes('data')) {
+      
+      try {
+        const { workoutLogs, personalRecords } = useWorkoutStore.getState();
+        const { stepCount, waterIntake } = useHealthStore.getState();
+        const { goals } = useAiStore.getState();
+        
+        let response = `📊 **Advanced Analytics Report**\n\n`;
+        
+        // Workout Analytics
+        if (workoutLogs && workoutLogs.length > 0) {
+          const completedWorkouts = workoutLogs.filter(log => log.completed);
+          const totalWorkouts = completedWorkouts.length;
+          const totalDuration = completedWorkouts.reduce((sum, workout) => 
+            sum + (workout.duration || 0), 0);
+          const avgDuration = totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0;
+          
+          response += `**Workout Analytics:**\n`;
+          response += `• Total workouts completed: ${totalWorkouts}\n`;
+          response += `• Average workout duration: ${avgDuration} minutes\n`;
+          response += `• Total workout time: ${Math.round(totalDuration / 60)} hours\n`;
+          
+          // Most frequent workout types
+          const workoutTypes = completedWorkouts.reduce((acc, workout) => {
+            const type = workout.workoutType || 'General';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const mostFrequent = Object.entries(workoutTypes)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+          
+          if (mostFrequent.length > 0) {
+            response += `• Most frequent workout types:\n`;
+            mostFrequent.forEach(([type, count]) => {
+              response += `  - ${type}: ${count} times\n`;
+            });
+          }
+          response += `\n`;
+        }
+        
+        // Strength Progress
+        if (personalRecords && personalRecords.length > 0) {
+          response += `**Strength Progress:**\n`;
+          const recentPRs = personalRecords
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+          
+          recentPRs.forEach(pr => {
+            const daysAgo = Math.floor((Date.now() - new Date(pr.date).getTime()) / (1000 * 60 * 60 * 24));
+            response += `• ${pr.exerciseName}: ${pr.weight}kg x ${pr.reps} reps (${daysAgo} days ago)\n`;
+          });
+          response += `\n`;
+        }
+        
+        // Health Metrics
+        response += `**Health Metrics:**\n`;
+        response += `• Daily steps: ${stepCount || 0}\n`;
+        
+        if (waterIntake && waterIntake.length > 0) {
+          const today = new Date().toISOString().split('T')[0];
+          const todayWater = waterIntake
+            .filter(entry => entry.date.startsWith(today))
+            .reduce((sum, entry) => sum + entry.amount, 0);
+          response += `• Today's water intake: ${(todayWater / 1000).toFixed(1)}L\n`;
+        }
+        
+        // Goal Progress
+        if (goals && goals.length > 0) {
+          const activeGoals = goals.filter(goal => !goal.completed);
+          const completedGoals = goals.filter(goal => goal.completed);
+          
+          response += `• Active goals: ${activeGoals.length}\n`;
+          response += `• Completed goals: ${completedGoals.length}\n`;
+          
+          if (activeGoals.length > 0) {
+            const avgProgress = activeGoals.reduce((sum, goal) => sum + (goal.progress || 0), 0) / activeGoals.length;
+            response += `• Average goal progress: ${Math.round(avgProgress)}%\n`;
+          }
+        }
+        response += `\n`;
+        
+        // Trends Analysis
+        response += `**Trends Analysis:**\n`;
+        if (workoutLogs && workoutLogs.length > 0) {
+          const last30Days = workoutLogs.filter(log => {
+            const workoutDate = new Date(log.date);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return workoutDate >= thirtyDaysAgo;
+          });
+          
+          response += `• Workouts in last 30 days: ${last30Days.length}\n`;
+          
+          if (last30Days.length > 0) {
+            const avgRating = last30Days.reduce((sum, workout) => 
+              sum + (workout.rating || 0), 0) / last30Days.length;
+            response += `• Average workout rating: ${avgRating.toFixed(1)}/5\n`;
+          }
+        }
+        
+        // Recommendations
+        response += `\n**Recommendations:**\n`;
+        if (workoutLogs && workoutLogs.length > 0) {
+          const lastWorkout = workoutLogs
+            .filter(log => log.completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          if (lastWorkout) {
+            const daysSinceLastWorkout = Math.floor((Date.now() - new Date(lastWorkout.date).getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceLastWorkout > 3) {
+              response += `• It's been ${daysSinceLastWorkout} days since your last workout\n`;
+              response += `• Consider scheduling a workout soon\n`;
+            } else {
+              response += `• Great consistency! Keep up the momentum\n`;
+            }
+          }
+        }
+        
+        if (stepCount && stepCount < 8000) {
+          response += `• You're below the recommended 10,000 steps\n`;
+          response += `• Try taking a walk or doing some light activity\n`;
+        }
+        
+        response += `\n**Need more specific analytics?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble generating analytics right now. Try asking about specific metrics like "workout trends" or "strength progress".`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handleRecoveryRecommendationsRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('recovery') || lowerMessage.includes('rest') || 
+        lowerMessage.includes('sleep') || lowerMessage.includes('rest day') ||
+        lowerMessage.includes('sore') || lowerMessage.includes('fatigue') ||
+        lowerMessage.includes('stretch') || lowerMessage.includes('mobility')) {
+      
+      try {
+        const { workoutLogs } = useWorkoutStore.getState();
+        const { userProfile } = useAiStore.getState();
+        
+        let response = `🛌 **Recovery Recommendations**\n\n`;
+        
+        // Analyze recent workout intensity
+        let recentIntensity = 'low';
+        let daysSinceLastWorkout = 0;
+        
+        if (workoutLogs && workoutLogs.length > 0) {
+          const completedWorkouts = workoutLogs.filter(log => log.completed);
+          const lastWorkout = completedWorkouts
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          if (lastWorkout) {
+            daysSinceLastWorkout = Math.floor((Date.now() - new Date(lastWorkout.date).getTime()) / (1000 * 60 * 60 * 24));
+            
+            // Determine intensity based on workout type and duration
+            const workoutType = lastWorkout.workoutType || '';
+            const duration = lastWorkout.duration || 0;
+            
+            if (workoutType.includes('strength') || workoutType.includes('power') || duration > 90) {
+              recentIntensity = 'high';
+            } else if (workoutType.includes('cardio') || workoutType.includes('endurance') || duration > 60) {
+              recentIntensity = 'medium';
+            }
+          }
+        }
+        
+        // Recovery status
+        response += `**Recovery Status:**\n`;
+        response += `• Days since last workout: ${daysSinceLastWorkout}\n`;
+        response += `• Recent workout intensity: ${recentIntensity}\n`;
+        
+        if (daysSinceLastWorkout === 0) {
+          response += `• You worked out today - focus on recovery!\n`;
+        } else if (daysSinceLastWorkout === 1) {
+          response += `• Yesterday's workout - active recovery recommended\n`;
+        } else if (daysSinceLastWorkout > 3) {
+          response += `• It's been a while - consider a workout soon\n`;
+        }
+        response += `\n`;
+        
+        // Recovery recommendations based on intensity
+        response += `**Recovery Recommendations:**\n`;
+        
+        if (recentIntensity === 'high') {
+          response += `**High Intensity Recovery:**\n`;
+          response += `• Rest for 48-72 hours before next intense workout\n`;
+          response += `• Focus on protein intake for muscle repair\n`;
+          response += `• Gentle stretching and mobility work\n`;
+          response += `• Consider foam rolling or massage\n`;
+          response += `• Prioritize 7-9 hours of quality sleep\n`;
+          response += `• Stay hydrated with electrolytes\n\n`;
+        } else if (recentIntensity === 'medium') {
+          response += `**Medium Intensity Recovery:**\n`;
+          response += `• Rest for 24-48 hours before similar workout\n`;
+          response += `• Light cardio or active recovery\n`;
+          response += `• Stretching and mobility exercises\n`;
+          response += `• Adequate protein and hydration\n`;
+          response += `• 7-8 hours of sleep\n\n`;
+        } else {
+          response += `**Low Intensity Recovery:**\n`;
+          response += `• Ready for another workout tomorrow\n`;
+          response += `• Light stretching and mobility\n`;
+          response += `• Stay active with walking or light activity\n`;
+          response += `• Maintain good nutrition and hydration\n\n`;
+        }
+        
+        // Sleep recommendations
+        response += `**Sleep Recommendations:**\n`;
+        response += `• Aim for 7-9 hours of quality sleep\n`;
+        response += `• Create a consistent sleep schedule\n`;
+        response += `• Avoid screens 1 hour before bed\n`;
+        response += `• Keep bedroom cool and dark\n`;
+        response += `• Consider magnesium supplement for muscle recovery\n\n`;
+        
+        // Mobility and stretching
+        response += `**Mobility & Stretching:**\n`;
+        response += `• Dynamic stretching before workouts\n`;
+        response += `• Static stretching after workouts\n`;
+        response += `• Focus on tight areas: hips, shoulders, hamstrings\n`;
+        response += `• 10-15 minutes daily mobility work\n`;
+        response += `• Consider yoga or pilates for flexibility\n\n`;
+        
+        // Nutrition for recovery
+        response += `**Recovery Nutrition:**\n`;
+        response += `• Protein: 20-30g within 2 hours post-workout\n`;
+        response += `• Carbs: replenish glycogen stores\n`;
+        response += `• Hydration: drink water with electrolytes\n`;
+        response += `• Anti-inflammatory foods: berries, turmeric, ginger\n`;
+        response += `• Avoid alcohol and processed foods\n\n`;
+        
+        // Active recovery suggestions
+        response += `**Active Recovery Activities:**\n`;
+        response += `• Light walking or cycling\n`;
+        response += `• Swimming or water aerobics\n`;
+        response += `• Gentle yoga or stretching\n`;
+        response += `• Foam rolling or self-massage\n`;
+        response += `• Meditation or deep breathing\n\n`;
+        
+        // Injury prevention
+        response += `**Injury Prevention:**\n`;
+        response += `• Listen to your body's signals\n`;
+        response += `• Don't ignore persistent pain\n`;
+        response += `• Gradually increase workout intensity\n`;
+        response += `• Include rest days in your routine\n`;
+        response += `• Cross-train to prevent overuse injuries\n\n`;
+        
+        response += `**Need help with specific recovery techniques?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble generating recovery recommendations right now. Try asking about specific recovery topics like "sleep tips" or "stretching routines".`;
       }
     }
     
