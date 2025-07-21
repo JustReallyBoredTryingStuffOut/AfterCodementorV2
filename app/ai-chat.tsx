@@ -1333,18 +1333,6 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
-      // Check if it's a nutrition request
-      const nutritionResponse = await handleNutritionRequest(userInput);
-      if (nutritionResponse) {
-        addMessageToChat(currentChat.id, {
-          role: "assistant",
-          content: nutritionResponse,
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        return;
-      }
-      
       // Check if it's an advanced analytics request
       const advancedAnalyticsResponse = await handleAdvancedAnalyticsRequest(userInput);
       if (advancedAnalyticsResponse) {
