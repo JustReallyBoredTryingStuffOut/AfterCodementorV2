@@ -1141,12 +1141,12 @@ GOAL CREATION EXAMPLES:
         return;
       }
 
-      // Check if it's a workout scheduling request
-      const scheduleResponse = await handleWorkoutScheduling(userInput);
-      if (scheduleResponse) {
+      // Check if it's a workout scheduling request (enhanced)
+      const workoutSchedulingResponse = await handleWorkoutSchedulingRequest(userInput);
+      if (workoutSchedulingResponse) {
         addMessageToChat(currentChat.id, {
           role: "assistant",
-          content: scheduleResponse,
+          content: workoutSchedulingResponse,
           timestamp: new Date().toISOString()
         });
         setIsLoading(false);
@@ -1183,18 +1183,6 @@ GOAL CREATION EXAMPLES:
         addMessageToChat(currentChat.id, {
           role: "assistant",
           content: workoutCreationResponse,
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if it's a workout scheduling request
-      const workoutSchedulingResponse = await handleWorkoutSchedulingRequest(userInput);
-      if (workoutSchedulingResponse) {
-        addMessageToChat(currentChat.id, {
-          role: "assistant",
-          content: workoutSchedulingResponse,
           timestamp: new Date().toISOString()
         });
         setIsLoading(false);
@@ -1303,6 +1291,18 @@ GOAL CREATION EXAMPLES:
         addMessageToChat(currentChat.id, {
           role: "assistant",
           content: goalStatusResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's an app feature request
+      const appFeatureResponse = await handleAppFeatureRequest(userInput);
+      if (appFeatureResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: appFeatureResponse,
           timestamp: new Date().toISOString()
         });
         setIsLoading(false);
@@ -4781,11 +4781,17 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: colors.text,
   },
   inputContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   inputWrapper: {
     flexDirection: "row",
@@ -4794,22 +4800,30 @@ const getStyles = (colors: any) => StyleSheet.create({
   input: {
     flex: 1,
     backgroundColor: colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     fontSize: 16,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     color: colors.text,
     minHeight: 40,
     maxHeight: 100,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   disabledSendButton: {
     backgroundColor: colors.primaryLight,

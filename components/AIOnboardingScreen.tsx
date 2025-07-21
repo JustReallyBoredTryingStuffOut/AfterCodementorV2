@@ -334,7 +334,7 @@ export default function AIOnboardingScreen({ visible, onComplete, onSkip }: AIOn
   );
 
   const renderFeaturesStep = () => (
-    <View style={styles.stepContainer}>
+    <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
       <Text style={styles.stepTitle}>{STEPS[2].title}</Text>
       <Text style={styles.stepSubtitle}>{STEPS[2].subtitle}</Text>
       
@@ -383,7 +383,7 @@ export default function AIOnboardingScreen({ visible, onComplete, onSkip }: AIOn
           <View key={index} style={styles.scrollDot} />
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 
   const renderReadyStep = () => (
