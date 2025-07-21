@@ -89,6 +89,8 @@ interface HealthState {
   getStepsForDate: (date: string) => StepLog | undefined;
   getStepsForWeek: () => StepLog[];
   getStepsForMonth: () => StepLog[];
+  logStepsForDate: (date: string, steps: number, calories?: number, distance?: number) => void;
+  getCaloriesForDate: (date: string) => number;
   
   getWeightTrend: (days: number) => {
     dates: string[];
@@ -484,6 +486,44 @@ export const useHealthStore = create<HealthState>()(
         return stepLogs.filter(
           log => new Date(log.date) >= oneMonthAgo && new Date(log.date) <= today
         );
+      },
+      
+      logStepsForDate: (date, steps, calories, distance) => {
+        const existingLog = get().stepLogs.find(log => log.date === date);
+        
+        if (existingLog) {
+          // Update existing log
+          set(state => ({
+            stepLogs: state.stepLogs.map(log => 
+              log.date === date 
+                ? { 
+                    ...log, 
+                    steps, 
+                    caloriesBurned: calories || calculateCaloriesBurned(steps),
+                    distance: distance || calculateDistance(steps)
+                  }
+                : log
+            )
+          }));
+        } else {
+          // Create new log
+          const newLog: StepLog = {
+            id: Date.now().toString(),
+            date,
+            steps,
+            caloriesBurned: calories || calculateCaloriesBurned(steps),
+            distance: distance || calculateDistance(steps)
+          };
+          
+          set(state => ({
+            stepLogs: [...state.stepLogs, newLog]
+          }));
+        }
+      },
+      
+      getCaloriesForDate: (date) => {
+        const log = get().stepLogs.find(log => log.date === date);
+        return log ? log.caloriesBurned : 0;
       },
       
       getWeightTrend: (days) => {

@@ -1285,6 +1285,30 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
+      // Check if it's an app feature request
+      const appFeatureResponse = await handleAppFeatureRequest(userInput);
+      if (appFeatureResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: appFeatureResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's a goal status request
+      const goalStatusResponse = await handleGoalStatusRequest(userInput);
+      if (goalStatusResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: goalStatusResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Prepare messages for API
       const apiMessages = currentChat.messages
         .filter(msg => msg.role !== "system") // Filter out system messages
@@ -2033,6 +2057,61 @@ GOAL CREATION EXAMPLES:
         // Parse date and time from message
         const scheduleInfo = parseScheduleRequest(message);
         
+        // Enhanced workout type recognition
+        const workoutTypes = {
+          'push': ['chest', 'shoulders', 'triceps', 'push'],
+          'pull': ['back', 'biceps', 'pull'],
+          'legs': ['legs', 'quads', 'hamstrings', 'glutes', 'lower body'],
+          'full body': ['full body', 'total body', 'complete'],
+          'chest': ['chest', 'pecs'],
+          'back': ['back', 'lats'],
+          'shoulders': ['shoulders', 'deltoids'],
+          'arms': ['arms', 'biceps', 'triceps'],
+          'core': ['core', 'abs', 'abdominal']
+        };
+        
+        // Check if user mentioned a specific workout type
+        let requestedWorkoutType = null;
+        for (const [type, keywords] of Object.entries(workoutTypes)) {
+          if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+            requestedWorkoutType = type;
+            break;
+          }
+        }
+        
+        if (requestedWorkoutType) {
+          // Create a custom workout based on the type
+          const userFitnessLevel = macroUserProfile?.experienceLevel || 'beginner';
+          const customWorkout = await createWorkoutFromRequest(`${requestedWorkoutType} workout for ${userFitnessLevel} level`);
+          
+          if (customWorkout && scheduleInfo) {
+            // Schedule the workout
+            const scheduledTime = scheduleInfo.time || '18:30';
+            const scheduledDate = scheduleInfo.date || new Date().toISOString().split('T')[0];
+            
+            try {
+              await scheduleWorkout?.({
+                id: Date.now().toString(),
+                workoutId: customWorkout.id,
+                dayOfWeek: new Date(scheduledDate).getDay(),
+                time: scheduledTime,
+                duration: customWorkout.duration || 45,
+                completed: false
+              });
+              
+              return `Perfect! I've created and scheduled a ${requestedWorkoutType} workout for you:\n\n` +
+                     `📅 Date: ${scheduledDate}\n` +
+                     `⏰ Time: ${scheduledTime}\n` +
+                     `💪 Workout: ${customWorkout.name}\n` +
+                     `⏱️ Duration: ${customWorkout.duration || 45} minutes\n` +
+                     `🏋️ Difficulty: ${userFitnessLevel}\n\n` +
+                     `The workout has been added to your schedule. You can view it in the Schedule tab!`;
+            } catch (error) {
+              return `I've created a ${requestedWorkoutType} workout for you, but there was an issue scheduling it. You can find the workout in your workout library and schedule it manually.`;
+            }
+          }
+        }
+        
         if (scheduleInfo) {
           // Get the most recent workout (assuming it's the one to schedule)
           const { workouts } = useWorkoutStore.getState();
@@ -2070,11 +2149,20 @@ GOAL CREATION EXAMPLES:
           }
         } else {
           let response = `📅 **Let me help you schedule a workout!**\n\n`;
-          response += `Please tell me:\n`;
-          response += `• What day you want to work out\n`;
-          response += `• What time (e.g., "tomorrow at 6pm")\n`;
-          response += `• Any specific notes\n\n`;
-          response += `Example: "Schedule my workout for tomorrow at 6pm"`;
+          response += `I can create and schedule these types of workouts:\n\n`;
+          response += `**Push Workouts:**\n`;
+          response += `• Chest, shoulders, triceps\n`;
+          response += `• Example: "Schedule a push workout for tomorrow at 6pm"\n\n`;
+          response += `**Pull Workouts:**\n`;
+          response += `• Back, biceps\n`;
+          response += `• Example: "Schedule a pull workout for Friday at 7pm"\n\n`;
+          response += `**Leg Workouts:**\n`;
+          response += `• Quads, hamstrings, glutes\n`;
+          response += `• Example: "Schedule a legs workout for Wednesday at 5pm"\n\n`;
+          response += `**Full Body Workouts:**\n`;
+          response += `• Complete body workout\n`;
+          response += `• Example: "Schedule a full body workout for Monday at 6am"\n\n`;
+          response += `**Just tell me what type and when!**`;
           
           return response;
         }
@@ -4288,6 +4376,126 @@ GOAL CREATION EXAMPLES:
         </TouchableOpacity>
       </TouchableOpacity>
     );
+  };
+  
+  const handleAppFeatureRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('feature') || lowerMessage.includes('what can') || 
+        lowerMessage.includes('app can') || lowerMessage.includes('capabilities')) {
+      
+      let response = `🚀 **FitJourney Tracker Features**\n\n`;
+      response += `Here's what this app can do for you:\n\n`;
+      
+      response += `**🏋️ Workout Management:**\n`;
+      response += `• Create custom workouts from scratch\n`;
+      response += `• Schedule workouts in calendar view\n`;
+      response += `• Track workout progress and history\n`;
+      response += `• Log exercises with sets, reps, and weights\n`;
+      response += `• Get workout recommendations based on your level\n\n`;
+      
+      response += `**📊 Health Tracking:**\n`;
+      response += `• Track steps, calories burned, and distance\n`;
+      response += `• Monitor weight progress with charts\n`;
+      response += `• Log water intake with reminders\n`;
+      response += `• Sync with Apple HealthKit\n`;
+      response += `• Track body measurements and progress photos\n\n`;
+      
+      response += `**🍎 Nutrition Management:**\n`;
+      response += `• Log meals and track macros\n`;
+      response += `• Set personalized macro goals\n`;
+      response += `• Get meal recommendations\n`;
+      response += `• Track nutrition history\n\n`;
+      
+      response += `**🎯 Goal Setting & Gamification:**\n`;
+      response += `• Set fitness, weight, and nutrition goals\n`;
+      response += `• Daily quests and achievements\n`;
+      response += `• Progress tracking with rewards\n`;
+      response += `• Streak tracking and milestones\n\n`;
+      
+      response += `**🤖 AI Assistant (That's me!):**\n`;
+      response += `• Create custom workouts\n`;
+      response += `• Schedule workouts automatically\n`;
+      response += `• Answer questions about your progress\n`;
+      response += `• Provide personalized recommendations\n`;
+      response += `• Check goal status and notifications\n\n`;
+      
+      response += `**📅 Schedule & Planning:**\n`;
+      response += `• Calendar view for workouts\n`;
+      response += `• Meal planning and scheduling\n`;
+      response += `• Reminder notifications\n`;
+      response += `• Progress tracking over time\n\n`;
+      
+      response += `**What would you like to explore?**`;
+      
+      return response;
+    }
+    
+    return null;
+  };
+  
+  const handleGoalStatusRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('goal') && (lowerMessage.includes('status') || 
+        lowerMessage.includes('check') || lowerMessage.includes('active'))) {
+      
+      try {
+        const { goals } = aiStore || {};
+        const { waterIntake } = healthStore || {};
+        const { stepCount } = healthStore || {};
+        
+        let response = `🎯 **Your Active Goals Status**\n\n`;
+        
+        // Check water goal
+        if (lowerMessage.includes('water') || lowerMessage.includes('drink')) {
+          const today = new Date().toISOString().split('T')[0];
+          const todayWater = waterIntake?.filter(entry => 
+            entry.date.startsWith(today)
+          ).reduce((total, entry) => total + entry.amount, 0) || 0;
+          
+          response += `💧 **Water Intake Goal:**\n`;
+          response += `• Today's intake: ${(todayWater / 1000).toFixed(1)}L\n`;
+          response += `• Target: 2L daily\n`;
+          response += `• Progress: ${Math.min(100, (todayWater / 2000) * 100).toFixed(1)}%\n\n`;
+          
+          // Check next water reminder
+          response += `⏰ **Next Water Reminder:**\n`;
+          response += `• Reminders are set for every 2 hours\n`;
+          response += `• Next reminder: In 2 hours\n\n`;
+        }
+        
+        // Check step goal
+        if (lowerMessage.includes('step') || lowerMessage.includes('walk')) {
+          response += `👟 **Daily Steps Goal:**\n`;
+          response += `• Today's steps: ${stepCount || 0}\n`;
+          response += `• Target: 10,000 steps\n`;
+          response += `• Progress: ${Math.min(100, ((stepCount || 0) / 10000) * 100).toFixed(1)}%\n\n`;
+        }
+        
+        // Check AI goals
+        if (goals && goals.length > 0) {
+          response += `🎯 **AI-Created Goals:**\n`;
+          goals.forEach(goal => {
+            if (!goal.completed) {
+              response += `• ${goal.text}\n`;
+              if (goal.progress !== undefined) {
+                response += `  Progress: ${goal.progress}%\n`;
+              }
+              response += `\n`;
+            }
+          });
+        }
+        
+        response += `**Need help with any of these goals?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble checking your goal status right now. Try asking about specific goals like "water goal status" or "step goal progress".`;
+      }
+    }
+    
+    return null;
   };
   
   const styles = getStyles(colors);

@@ -115,14 +115,27 @@ export default function useStepCounter() {
                 // Log the steps with additional data if available
                 const stepLog = {
                   id: today.toISOString(),
-                  date: today.toISOString(),
+                  date: today.toISOString().split('T')[0], // Use YYYY-MM-DD format
                   steps: steps, // Use the properly converted number
                   distance: distanceResult.success ? Number(distanceResult.distance) : 0,
-                  calories: caloriesResult.success ? Number(caloriesResult.calories) : 0,
+                  caloriesBurned: caloriesResult.success ? Number(caloriesResult.calories) : 0,
                   source: "Apple Health"
                 };
                 
                 addStepLog(stepLog);
+                
+                // Also log to health store for daily tracking
+                try {
+                  const { logStepsForDate } = useHealthStore.getState();
+                  logStepsForDate(
+                    today.toISOString().split('T')[0],
+                    steps,
+                    caloriesResult.success ? Number(caloriesResult.calories) : 0,
+                    distanceResult.success ? Number(distanceResult.distance) : 0
+                  );
+                } catch (error) {
+                  console.log('[StepCounter] Error logging to health store:', error);
+                }
               }
               
               // Set up observer for step count changes

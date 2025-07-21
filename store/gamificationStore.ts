@@ -147,6 +147,7 @@ interface GamificationState {
   generateDailyQuests: () => void;
   completeDailyQuest: (questId: string) => void;
   checkAndAutoCompleteQuests: () => void;
+  resetDailyQuests: () => void;
   
   clearCelebration: () => void;
   clearChallengeCelebration: () => void;
@@ -3583,7 +3584,7 @@ const defaultChallenges: Challenge[] = [
 
 // Helper function to generate daily quests
 const generateDefaultDailyQuests = (): DailyQuest[] => {
-  const today = new Date().toISOString();
+  const today = new Date().toISOString().split('T')[0]; // Use YYYY-MM-DD format
   const macroStore = useMacroStore.getState();
   const userFitnessLevel = macroStore.userProfile.fitnessLevel || 'beginner';
   
@@ -4350,9 +4351,18 @@ export const useGamificationStore = create<GamificationState>()(
         // Skip if gamification is disabled
         if (!get().gamificationEnabled) return;
         
-        set({
-          dailyQuests: generateDefaultDailyQuests()
-        });
+        const today = new Date().toISOString().split('T')[0]; // Get today's date as YYYY-MM-DD
+        
+        // Check if we already have quests for today
+        const existingQuests = get().dailyQuests;
+        const todayQuests = existingQuests.filter(q => q.date.startsWith(today));
+        
+        // Only generate new quests if we don't have any for today
+        if (todayQuests.length === 0) {
+          set({
+            dailyQuests: generateDefaultDailyQuests()
+          });
+        }
       },
       
       completeDailyQuest: (questId) => {
@@ -4375,6 +4385,17 @@ export const useGamificationStore = create<GamificationState>()(
           };
         });
       },
+      
+      resetDailyQuests: () => {
+        // Skip if gamification is disabled
+        if (!get().gamificationEnabled) return;
+        
+        const today = new Date().toISOString().split('T')[0];
+        
+        set(state => ({
+          dailyQuests: state.dailyQuests.filter(q => !q.date.startsWith(today))
+        }));
+      },
 
       // New method to automatically check and complete quests based on health data
       checkAndAutoCompleteQuests: () => {
@@ -4384,10 +4405,10 @@ export const useGamificationStore = create<GamificationState>()(
         const { dailyQuests, completeDailyQuest } = get();
         const healthStore = useHealthStore.getState();
         
-        // Get today's active quests
-        const today = new Date().toDateString();
+        // Get today's active quests using YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
         const activeQuests = dailyQuests.filter(q => 
-          new Date(q.date).toDateString() === today && !q.completed
+          q.date.startsWith(today) && !q.completed
         );
         
         activeQuests.forEach(quest => {
