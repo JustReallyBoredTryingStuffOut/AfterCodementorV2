@@ -1023,29 +1023,29 @@ GOAL CREATION EXAMPLES:
     if (currentChat && currentChat.messages.length <= 2) {
       // This is a new chat, show proactive suggestions
       try {
-        const context = getUserContext();
-        const suggestions = [];
-        
-        if (context.targetWeight > 0) {
-          suggestions.push("Check my weight loss progress");
-        }
-        
-        if (context.stepCount < 5000) {
-          suggestions.push("I need motivation to move more");
-        }
-        
+      const context = getUserContext();
+      const suggestions = [];
+      
+      if (context.targetWeight > 0) {
+        suggestions.push("Check my weight loss progress");
+      }
+      
+      if (context.stepCount < 5000) {
+        suggestions.push("I need motivation to move more");
+      }
+      
         if (context.recentWorkouts && context.recentWorkouts.length === 0) {
-          suggestions.push("Suggest a workout for me");
-        }
-        
-        if (suggestions.length > 0) {
-          // Add proactive message after a delay
-          setTimeout(() => {
-            addMessageToChat(currentChat.id, {
-              role: "assistant",
-              content: `${generateProactiveMessage()}\n\nI can help you with:\n${suggestions.map(s => `• ${s}`).join('\n')}\n\nJust tap the quick actions or ask me anything!`
-            });
-          }, 2000);
+        suggestions.push("Suggest a workout for me");
+      }
+      
+      if (suggestions.length > 0) {
+        // Add proactive message after a delay
+        setTimeout(() => {
+          addMessageToChat(currentChat.id, {
+            role: "assistant",
+            content: `${generateProactiveMessage()}\n\nI can help you with:\n${suggestions.map(s => `• ${s}`).join('\n')}\n\nJust tap the quick actions or ask me anything!`
+          });
+        }, 2000);
         }
       } catch (error) {
         console.error("Error in proactive suggestions useEffect:", error);
@@ -4441,11 +4441,11 @@ GOAL CREATION EXAMPLES:
       {!showChats && (
         <>
           <KeyboardDismissButton />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
             style={[styles.inputContainer, { paddingBottom: insets.bottom + 16 }]}
-          >
+        >
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}

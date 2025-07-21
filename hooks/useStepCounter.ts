@@ -86,6 +86,8 @@ export default function useStepCounter() {
               );
               
               if (stepsResult.success) {
+                console.log('[useStepCounter] HealthKit steps result:', stepsResult);
+                console.log('[useStepCounter] Steps value:', stepsResult.steps, 'Type:', typeof stepsResult.steps);
                 setCurrentStepCount(stepsResult.steps);
                 
                 // Get distance data
@@ -418,6 +420,9 @@ export default function useStepCounter() {
           formatDateForHealthKit(today),
           formatDateForHealthKit(new Date())
         );
+        
+        console.log('[useStepCounter] Manual sync steps result:', stepsResult);
+        console.log('[useStepCounter] Manual sync steps value:', stepsResult.steps, 'Type:', typeof stepsResult.steps);
         
         if (stepsResult.success) {
           setCurrentStepCount(stepsResult.steps);
