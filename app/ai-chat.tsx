@@ -1297,18 +1297,6 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
-      // Check if it's an app feature request
-      const appFeatureResponse = await handleAppFeatureRequest(userInput);
-      if (appFeatureResponse) {
-        addMessageToChat(currentChat.id, {
-          role: "assistant",
-          content: appFeatureResponse,
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        return;
-      }
-      
       // Prepare messages for API
       const apiMessages = currentChat.messages
         .filter(msg => msg.role !== "system") // Filter out system messages
