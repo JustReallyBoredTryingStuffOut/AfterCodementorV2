@@ -31,6 +31,7 @@ export interface Exercise {
   id: string;
   name: string;
   description: string;
+  bodyRegion: string;
   muscleGroups: string[];
   equipment: string[];
   instructions: string[];
