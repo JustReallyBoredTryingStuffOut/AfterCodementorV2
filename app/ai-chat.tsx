@@ -1785,6 +1785,9 @@ GOAL CREATION EXAMPLES:
     // Get exercises based on workout type and user preferences
     const selectedExercises = getExercisesForWorkoutType(workoutType, difficulty);
     
+    // Debug: Log the number of exercises found
+    console.log(`[AI Chat] Found ${selectedExercises.length} exercises for workout type: ${workoutType}`);
+    
     // Filter exercises based on user preferences
     const filteredExercises = selectedExercises.filter(exercise => {
       // Avoid disliked exercises
@@ -1804,8 +1807,10 @@ GOAL CREATION EXAMPLES:
       return true;
     });
     
+    console.log(`[AI Chat] After filtering, ${filteredExercises.length} exercises remain`);
+    
     if (filteredExercises.length === 0) {
-      throw new Error('No exercises found for the requested workout type');
+      throw new Error(`No exercises found for the requested workout type: ${workoutType}`);
     }
     
     // Adjust number of exercises based on experience level
@@ -1842,6 +1847,9 @@ GOAL CREATION EXAMPLES:
 
   const getExercisesForWorkoutType = (workoutType: string, difficulty: string): Exercise[] => {
     const { exercises } = useWorkoutStore.getState();
+    
+    console.log(`[AI Chat] Getting exercises for type: ${workoutType}, difficulty: ${difficulty}`);
+    console.log(`[AI Chat] Total exercises available: ${exercises.length}`);
     
     switch (workoutType) {
       case 'push':
@@ -1893,9 +1901,11 @@ GOAL CREATION EXAMPLES:
         ).slice(0, 6);
         
       case 'chest':
-        return exercises.filter(ex => 
+        const chestExercises = exercises.filter(ex => 
           ex.muscleGroups.some(mg => mg.name === 'Chest')
-        ).slice(0, 4);
+        );
+        console.log(`[AI Chat] Found ${chestExercises.length} chest exercises`);
+        return chestExercises.slice(0, 4);
         
       case 'back':
         return exercises.filter(ex => 
