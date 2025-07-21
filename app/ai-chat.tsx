@@ -1213,18 +1213,6 @@ GOAL CREATION EXAMPLES:
         return;
       }
 
-      // Check if it's a recovery request
-      const recoveryResponse = await handleRecoveryRequest(userInput);
-      if (recoveryResponse) {
-        addMessageToChat(currentChat.id, {
-          role: "assistant",
-          content: recoveryResponse,
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        return;
-      }
-
       // Check if it's an analytics request
       const analyticsResponse = await handleAnalyticsRequest(userInput);
       if (analyticsResponse) {
