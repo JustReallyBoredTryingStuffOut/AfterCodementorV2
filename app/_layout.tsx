@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, TextInput, ScrollView, Platform, ActivityIndicator, Alert, AppState } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, TextInput, ScrollView, Platform, ActivityIndicator, Alert, AppState, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useGamificationStore } from '@/store/gamificationStore';
@@ -158,14 +158,6 @@ export default function RootLayout() {
     const checkFirstLaunch = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-        
-        // TEMPORARY: Force onboarding for testing
-        // Uncomment the next line to force onboarding
-        await AsyncStorage.removeItem('hasLaunched');
-        
-        // TEMPORARY: Force onboarding by clearing completion status
-        // Uncomment the next line to force onboarding
-        // await AsyncStorage.removeItem('gamification-storage');
         
         if (hasLaunched === null) {
           setIsFirstLaunch(true);
@@ -977,26 +969,36 @@ export default function RootLayout() {
           )}
         </View>
       ) : showWelcome ? (
-        <Animated.View 
-          style={[
-            styles.welcomeContainer, 
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          {/* Back button, not shown on the first onboarding step */}
-          {currentOnboardingStep > 0 && (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Animated.View 
+            style={[
+              styles.welcomeContainer, 
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            {/* Keyboard dismiss button */}
             <TouchableOpacity
-              style={styles.onboardingBackButton}
-              onPress={() => setCurrentOnboardingStep(currentOnboardingStep - 1)}
-              accessibilityLabel="Go back"
+              style={styles.keyboardDismissButton}
+              onPress={Keyboard.dismiss}
+              accessibilityLabel="Dismiss keyboard"
             >
-              <ArrowLeft size={22} color="#FFFFFF" />
+              <Text style={styles.keyboardDismissText}>⌨️</Text>
             </TouchableOpacity>
-          )}
-          <View style={styles.welcomeContent}>
+            
+            {/* Back button, not shown on the first onboarding step */}
+            {currentOnboardingStep > 0 && (
+              <TouchableOpacity
+                style={styles.onboardingBackButton}
+                onPress={() => setCurrentOnboardingStep(currentOnboardingStep - 1)}
+                accessibilityLabel="Go back"
+              >
+                <ArrowLeft size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+            <View style={styles.welcomeContent}>
             {currentStep.showSkip && (
               <TouchableOpacity 
                 style={styles.skipButton} 
@@ -1072,6 +1074,7 @@ export default function RootLayout() {
             )}
           </View>
         </Animated.View>
+        </TouchableWithoutFeedback>
       ) : (
         <>
           <NotificationHandler />
@@ -1495,5 +1498,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontStyle: 'italic',
+  },
+  keyboardDismissButton: {
+    position: 'absolute',
+    top: 40,
+    right: 24,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 8,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+  },
+  keyboardDismissText: {
+    fontSize: 18,
+    color: '#FFFFFF',
   },
 });

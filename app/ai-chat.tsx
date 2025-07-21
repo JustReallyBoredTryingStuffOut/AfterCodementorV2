@@ -17,6 +17,7 @@ import { Stack, useRouter } from "expo-router";
 import { ArrowLeft, Send, Plus, Trash2, Target, Activity, TrendingUp, Zap } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAiStore, AiChat, ChatMessage } from "@/store/aiStore";
+import KeyboardDismissButton from "@/components/KeyboardDismissButton";
 import { Exercise } from "@/types";
 import { useMacroStore } from "@/store/macroStore";
 import { useHealthStore } from "@/store/healthStore";
@@ -4438,11 +4439,13 @@ GOAL CREATION EXAMPLES:
       />
       
       {!showChats && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-          style={[styles.inputContainer, { paddingBottom: insets.bottom + 16 }]}
-        >
+        <>
+          <KeyboardDismissButton />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+            style={[styles.inputContainer, { paddingBottom: insets.bottom + 16 }]}
+          >
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -4471,6 +4474,7 @@ GOAL CREATION EXAMPLES:
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        </>
       )}
     </SafeAreaView>
   );
