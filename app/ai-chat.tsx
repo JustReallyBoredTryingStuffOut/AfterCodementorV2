@@ -1297,6 +1297,42 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
+      // Check if it's a goal progress request
+      const goalProgressResponse = await handleGoalProgressRequest(userInput);
+      if (goalProgressResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: goalProgressResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's a personal records request
+      const personalRecordsResponse = await handlePersonalRecordsRequest(userInput);
+      if (personalRecordsResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: personalRecordsResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's an exercise education request
+      const exerciseEducationResponse = await handleExerciseEducationRequest(userInput);
+      if (exerciseEducationResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: exerciseEducationResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Prepare messages for API
       const apiMessages = currentChat.messages
         .filter(msg => msg.role !== "system") // Filter out system messages
@@ -4485,6 +4521,335 @@ GOAL CREATION EXAMPLES:
         return response;
       } catch (error) {
         return `I'm having trouble checking your goal status right now. Try asking about specific goals like "water goal status" or "step goal progress".`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handleGoalProgressRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('goal') && (lowerMessage.includes('progress') || 
+        lowerMessage.includes('tracking') || lowerMessage.includes('how am i doing'))) {
+      
+      try {
+        const { goals, checkAllGoalsProgress, getGoalProgressMessage } = aiStore || {};
+        
+        // Update all goal progress
+        checkAllGoalsProgress?.();
+        
+        let response = `📊 **Goal Progress Tracking**\n\n`;
+        
+        if (goals && goals.length > 0) {
+          const activeGoals = goals.filter(goal => !goal.completed);
+          
+          if (activeGoals.length === 0) {
+            response += `🎉 **All goals completed!** You're doing amazing!\n\n`;
+            response += `Would you like to set new goals?`;
+            return response;
+          }
+          
+          response += `**Active Goals Progress:**\n\n`;
+          
+          activeGoals.forEach((goal, index) => {
+            const progressMessage = getGoalProgressMessage?.(goal) || '';
+            const progressPercentage = goal.progress || 0;
+            const progressBar = '█'.repeat(Math.floor(progressPercentage / 10)) + '░'.repeat(10 - Math.floor(progressPercentage / 10));
+            
+            response += `${index + 1}. **${goal.text}**\n`;
+            response += `   Progress: ${progressPercentage}% ${progressBar}\n`;
+            
+            if (goal.targetValue && goal.currentValue) {
+              response += `   Current: ${goal.currentValue} / ${goal.targetValue}\n`;
+            }
+            
+            if (goal.timeframe) {
+              response += `   Timeframe: ${goal.timeframe}\n`;
+            }
+            
+            if (progressMessage) {
+              response += `   ${progressMessage}\n`;
+            }
+            
+            response += `\n`;
+          });
+          
+          // Add recommendations based on progress
+          const lowProgressGoals = activeGoals.filter(goal => (goal.progress || 0) < 30);
+          if (lowProgressGoals.length > 0) {
+            response += `⚠️ **Goals Needing Attention:**\n`;
+            lowProgressGoals.forEach(goal => {
+              response += `• ${goal.text} - ${goal.progress || 0}% complete\n`;
+            });
+            response += `\nConsider adjusting these goals or asking for help!\n\n`;
+          }
+          
+          const highProgressGoals = activeGoals.filter(goal => (goal.progress || 0) > 70);
+          if (highProgressGoals.length > 0) {
+            response += `🚀 **Goals Almost Complete:**\n`;
+            highProgressGoals.forEach(goal => {
+              response += `• ${goal.text} - ${goal.progress || 0}% complete\n`;
+            });
+            response += `\nYou're so close! Keep pushing!\n\n`;
+          }
+        } else {
+          response += `No active goals found. Would you like to create some goals?\n\n`;
+          response += `Try saying:\n`;
+          response += `• "Create a goal to lose 5kg in 3 months"\n`;
+          response += `• "Set a goal to run 5km"\n`;
+          response += `• "I want to bench press 100kg"\n`;
+        }
+        
+        response += `**Need help with any goals?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble tracking your goal progress right now. Try asking about specific goals or create new ones!`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handlePersonalRecordsRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('pr') || lowerMessage.includes('personal record') || 
+        lowerMessage.includes('personal best') || lowerMessage.includes('record') ||
+        lowerMessage.includes('max') || lowerMessage.includes('best')) {
+      
+      try {
+        const { personalRecords } = useWorkoutStore.getState();
+        const { workoutLogs } = useWorkoutStore.getState();
+        
+        let response = `🏆 **Personal Records**\n\n`;
+        
+        if (personalRecords && personalRecords.length > 0) {
+          // Group PRs by exercise
+          const prsByExercise = personalRecords.reduce((acc, pr) => {
+            if (!acc[pr.exerciseName]) {
+              acc[pr.exerciseName] = [];
+            }
+            acc[pr.exerciseName].push(pr);
+            return acc;
+          }, {} as Record<string, any[]>);
+          
+          Object.entries(prsByExercise).forEach(([exerciseName, prs]) => {
+            const latestPR = prs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            
+            response += `**${exerciseName}**\n`;
+            response += `• Weight: ${latestPR.weight}kg\n`;
+            response += `• Reps: ${latestPR.reps}\n`;
+            response += `• Date: ${new Date(latestPR.date).toLocaleDateString()}\n`;
+            
+            // Check if it's a recent PR (within last 30 days)
+            const daysSincePR = Math.floor((Date.now() - new Date(latestPR.date).getTime()) / (1000 * 60 * 60 * 24));
+            if (daysSincePR <= 30) {
+              response += `• 🎉 Recent PR! (${daysSincePR} days ago)\n`;
+            }
+            
+            response += `\n`;
+          });
+          
+          // Add PR suggestions
+          response += `**PR Suggestions:**\n`;
+          response += `• Try increasing weight by 2.5-5kg for your next attempt\n`;
+          response += `• Focus on proper form and technique\n`;
+          response += `• Get adequate rest before attempting new PRs\n`;
+          response += `• Consider deloading if you're plateauing\n\n`;
+        } else {
+          response += `No personal records found yet.\n\n`;
+          response += `**To track PRs:**\n`;
+          response += `• Log your workouts with weights and reps\n`;
+          response += `• The app will automatically track your best performances\n`;
+          response += `• Try saying "What's my bench press PR?"\n\n`;
+        }
+        
+        // Add recent workout analysis
+        if (workoutLogs && workoutLogs.length > 0) {
+          const recentWorkouts = workoutLogs
+            .filter(log => !log.completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+          
+          if (recentWorkouts.length > 0) {
+            response += `**Recent Workout Analysis:**\n`;
+            recentWorkouts.forEach(workout => {
+              const exercises = workout.exercises || [];
+              const heavyExercises = exercises.filter(ex => 
+                ex.sets && ex.sets.some(set => set.weight && set.weight > 0)
+              );
+              
+              if (heavyExercises.length > 0) {
+                response += `• ${workout.workoutName || 'Workout'} - ${heavyExercises.length} heavy exercises\n`;
+              }
+            });
+            response += `\n`;
+          }
+        }
+        
+        response += `**Need help setting new PRs?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble accessing your personal records right now. Make sure you've logged some workouts with weights and reps!`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handleExerciseEducationRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('explain') || lowerMessage.includes('how to') || 
+        lowerMessage.includes('form') || lowerMessage.includes('technique') ||
+        lowerMessage.includes('benefits') || lowerMessage.includes('what is')) {
+      
+      try {
+        // Common exercises to explain
+        const exerciseKeywords = {
+          'squat': {
+            name: 'Squat',
+            benefits: ['Builds leg strength', 'Improves core stability', 'Enhances functional movement'],
+            form: [
+              'Stand with feet shoulder-width apart',
+              'Keep chest up and core engaged',
+              'Lower hips back and down',
+              'Keep knees in line with toes',
+              'Go as low as comfortable (thighs parallel to ground)',
+              'Drive through heels to stand up'
+            ],
+            tips: ['Start with bodyweight squats', 'Focus on form over weight', 'Keep weight in heels']
+          },
+          'bench press': {
+            name: 'Bench Press',
+            benefits: ['Builds chest strength', 'Improves upper body power', 'Enhances pushing strength'],
+            form: [
+              'Lie on bench with feet flat on ground',
+              'Grip bar slightly wider than shoulder-width',
+              'Lower bar to mid-chest with control',
+              'Keep elbows at 45-degree angle',
+              'Press bar back up to starting position',
+              'Keep shoulder blades retracted'
+            ],
+            tips: ['Start with lighter weights', 'Use a spotter for safety', 'Focus on controlled movement']
+          },
+          'deadlift': {
+            name: 'Deadlift',
+            benefits: ['Builds total body strength', 'Improves posture', 'Enhances functional strength'],
+            form: [
+              'Stand with feet hip-width apart',
+              'Grip bar with hands shoulder-width apart',
+              'Keep chest up and back straight',
+              'Hinge at hips and bend knees',
+              'Lift bar by driving through heels',
+              'Stand up straight with shoulders back'
+            ],
+            tips: ['Start with lighter weights', 'Focus on hip hinge movement', 'Keep bar close to body']
+          },
+          'pull up': {
+            name: 'Pull-up',
+            benefits: ['Builds back strength', 'Improves grip strength', 'Enhances upper body pulling'],
+            form: [
+              'Grip bar with hands wider than shoulders',
+              'Hang with arms fully extended',
+              'Pull yourself up until chin over bar',
+              'Lower yourself with control',
+              'Keep core engaged throughout'
+            ],
+            tips: ['Start with assisted pull-ups', 'Use resistance bands if needed', 'Focus on controlled movement']
+          },
+          'push up': {
+            name: 'Push-up',
+            benefits: ['Builds chest and tricep strength', 'Improves core stability', 'No equipment needed'],
+            form: [
+              'Start in plank position',
+              'Place hands slightly wider than shoulders',
+              'Lower body until chest nearly touches ground',
+              'Push back up to starting position',
+              'Keep body in straight line'
+            ],
+            tips: ['Start with knee push-ups if needed', 'Keep core engaged', 'Focus on full range of motion']
+          }
+        };
+        
+        // Find which exercise the user is asking about
+        let targetExercise = null;
+        for (const [keyword, exercise] of Object.entries(exerciseKeywords)) {
+          if (lowerMessage.includes(keyword)) {
+            targetExercise = exercise;
+            break;
+          }
+        }
+        
+        if (targetExercise) {
+          let response = `📚 **${targetExercise.name} - Exercise Guide**\n\n`;
+          
+          response += `**Benefits:**\n`;
+          targetExercise.benefits.forEach(benefit => {
+            response += `• ${benefit}\n`;
+          });
+          response += `\n`;
+          
+          response += `**Proper Form:**\n`;
+          targetExercise.form.forEach((step, index) => {
+            response += `${index + 1}. ${step}\n`;
+          });
+          response += `\n`;
+          
+          response += `**Pro Tips:**\n`;
+          targetExercise.tips.forEach(tip => {
+            response += `• ${tip}\n`;
+          });
+          response += `\n`;
+          
+          response += `**Common Mistakes to Avoid:**\n`;
+          response += `• Rushing the movement\n`;
+          response += `• Using too much weight before mastering form\n`;
+          response += `• Not engaging core muscles\n`;
+          response += `• Incomplete range of motion\n\n`;
+          
+          response += `**Progression Tips:**\n`;
+          response += `• Start with lighter weights or bodyweight\n`;
+          response += `• Focus on perfect form before increasing weight\n`;
+          response += `• Gradually increase difficulty\n`;
+          response += `• Listen to your body and rest when needed\n\n`;
+          
+          response += `**Need help with other exercises?**`;
+          
+          return response;
+        } else {
+          // General exercise education
+          let response = `📚 **Exercise Education**\n\n`;
+          
+          response += `**I can explain these exercises:**\n`;
+          response += `• Squat - Lower body strength\n`;
+          response += `• Bench Press - Upper body pushing\n`;
+          response += `• Deadlift - Total body strength\n`;
+          response += `• Pull-up - Upper body pulling\n`;
+          response += `• Push-up - Bodyweight chest exercise\n\n`;
+          
+          response += `**Try asking:**\n`;
+          response += `• "Explain how to do squats"\n`;
+          response += `• "What are the benefits of bench press?"\n`;
+          response += `• "Show me proper deadlift form"\n`;
+          response += `• "How do I do pull-ups?"\n\n`;
+          
+          response += `**General Exercise Tips:**\n`;
+          response += `• Always warm up before exercising\n`;
+          response += `• Focus on form over weight\n`;
+          response += `• Breathe properly during exercises\n`;
+          response += `• Rest adequately between sets\n`;
+          response += `• Progress gradually and safely\n\n`;
+          
+          response += `**Need help with a specific exercise?**`;
+          
+          return response;
+        }
+      } catch (error) {
+        return `I'm having trouble explaining exercises right now. Try asking about a specific exercise like "explain squats" or "how to bench press".`;
       }
     }
     
