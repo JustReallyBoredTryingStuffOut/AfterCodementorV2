@@ -1369,6 +1369,30 @@ GOAL CREATION EXAMPLES:
         return;
       }
       
+      // Check if it's a predictive analytics request
+      const predictiveResponse = await handlePredictiveAnalyticsRequest(userInput);
+      if (predictiveResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: predictiveResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if it's an advanced personalization request
+      const personalizationResponse = await handleAdvancedPersonalizationRequest(userInput);
+      if (personalizationResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: personalizationResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       // Prepare messages for API
       const apiMessages = currentChat.messages
         .filter(msg => msg.role !== "system") // Filter out system messages
@@ -5234,6 +5258,394 @@ GOAL CREATION EXAMPLES:
         return response;
       } catch (error) {
         return `I'm having trouble generating recovery recommendations right now. Try asking about specific recovery topics like "sleep tips" or "stretching routines".`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handlePredictiveAnalyticsRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('predict') || lowerMessage.includes('forecast') || 
+        lowerMessage.includes('future') || lowerMessage.includes('projection') ||
+        lowerMessage.includes('trend') || lowerMessage.includes('estimate') ||
+        lowerMessage.includes('when') || lowerMessage.includes('timeline')) {
+      
+      try {
+        const { workoutLogs, personalRecords } = useWorkoutStore.getState();
+        const { goals } = useAiStore.getState();
+        const { userProfile } = useAiStore.getState();
+        
+        let response = `🔮 **Predictive Analytics**\n\n`;
+        
+        // Predict next PR based on current progress
+        if (personalRecords && personalRecords.length > 0) {
+          response += `**Strength Predictions:**\n`;
+          
+          // Group PRs by exercise
+          const prsByExercise = personalRecords.reduce((acc, pr) => {
+            if (!acc[pr.exerciseName]) {
+              acc[pr.exerciseName] = [];
+            }
+            acc[pr.exerciseName].push(pr);
+            return acc;
+          }, {} as Record<string, any[]>);
+          
+          Object.entries(prsByExercise).forEach(([exerciseName, prs]) => {
+            const sortedPRs = prs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            
+            if (sortedPRs.length >= 2) {
+              const latestPR = sortedPRs[sortedPRs.length - 1];
+              const previousPR = sortedPRs[sortedPRs.length - 2];
+              
+              // Calculate improvement rate
+              const weightImprovement = latestPR.weight - previousPR.weight;
+              const timeBetweenPRs = (new Date(latestPR.date).getTime() - new Date(previousPR.date).getTime()) / (1000 * 60 * 60 * 24);
+              const improvementRate = weightImprovement / timeBetweenPRs; // kg per day
+              
+              // Predict next PR
+              const nextPRWeight = Math.round(latestPR.weight + (improvementRate * 30)); // 30 days projection
+              const nextPRDate = new Date();
+              nextPRDate.setDate(nextPRDate.getDate() + 30);
+              
+              response += `**${exerciseName}:**\n`;
+              response += `• Current PR: ${latestPR.weight}kg x ${latestPR.reps} reps\n`;
+              response += `• Improvement rate: +${weightImprovement.toFixed(1)}kg in ${timeBetweenPRs} days\n`;
+              response += `• Predicted next PR: ${nextPRWeight}kg (in ~30 days)\n`;
+              response += `• Estimated date: ${nextPRDate.toLocaleDateString()}\n\n`;
+            }
+          });
+        }
+        
+        // Predict goal achievement
+        if (goals && goals.length > 0) {
+          const activeGoals = goals.filter(goal => !goal.completed);
+          
+          if (activeGoals.length > 0) {
+            response += `**Goal Achievement Predictions:**\n`;
+            
+            activeGoals.forEach(goal => {
+              const progress = goal.progress || 0;
+              const daysSinceStart = goal.date ? 
+                Math.floor((Date.now() - new Date(goal.date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              
+              if (progress > 0 && daysSinceStart > 0) {
+                const progressRate = progress / daysSinceStart; // % per day
+                const daysToComplete = Math.ceil((100 - progress) / progressRate);
+                const estimatedCompletionDate = new Date();
+                estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + daysToComplete);
+                
+                response += `**${goal.text}:**\n`;
+                response += `• Current progress: ${progress}%\n`;
+                response += `• Progress rate: ${progressRate.toFixed(2)}% per day\n`;
+                response += `• Estimated completion: ${estimatedCompletionDate.toLocaleDateString()}\n`;
+                response += `• Days remaining: ~${daysToComplete}\n\n`;
+              }
+            });
+          }
+        }
+        
+        // Predict fitness level progression
+        const experienceLevel = userProfile?.experienceLevel || 'beginner';
+        const fitnessGoals = userProfile?.fitnessGoals || [];
+        
+        response += `**Fitness Level Predictions:**\n`;
+        
+        if (workoutLogs && workoutLogs.length > 0) {
+          const completedWorkouts = workoutLogs.filter(log => log.completed);
+          const totalWorkouts = completedWorkouts.length;
+          const last30Days = completedWorkouts.filter(log => {
+            const workoutDate = new Date(log.date);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return workoutDate >= thirtyDaysAgo;
+          });
+          
+          const workoutFrequency = last30Days.length / 30; // workouts per day
+          const consistencyScore = Math.min(100, (workoutFrequency * 7) * 100); // 7 workouts/week = 100%
+          
+          response += `• Current consistency: ${consistencyScore.toFixed(1)}%\n`;
+          response += `• Workouts per week: ${(workoutFrequency * 7).toFixed(1)}\n`;
+          
+          // Predict level progression
+          if (experienceLevel === 'beginner') {
+            if (consistencyScore > 70) {
+              response += `• Predicted progression to intermediate: 3-6 months\n`;
+              response += `• Focus on: Progressive overload, proper form\n`;
+            } else {
+              response += `• Predicted progression to intermediate: 6-12 months\n`;
+              response += `• Focus on: Building consistency first\n`;
+            }
+          } else if (experienceLevel === 'intermediate') {
+            if (consistencyScore > 80) {
+              response += `• Predicted progression to advanced: 6-12 months\n`;
+              response += `• Focus on: Specialized training, periodization\n`;
+            } else {
+              response += `• Predicted progression to advanced: 12-18 months\n`;
+              response += `• Focus on: Increasing training volume and intensity\n`;
+            }
+          } else {
+            response += `• Advanced level - focus on specialization and optimization\n`;
+          }
+        }
+        
+        // Predict health outcomes
+        response += `\n**Health Outcome Predictions:**\n`;
+        
+        if (fitnessGoals.includes('weight loss')) {
+          response += `• Weight loss: 0.5-1kg per week with consistent diet and exercise\n`;
+          response += `• Body composition: Improved muscle-to-fat ratio in 3-6 months\n`;
+        } else if (fitnessGoals.includes('muscle gain')) {
+          response += `• Muscle gain: 0.5-1kg per month for beginners\n`;
+          response += `• Strength gains: 5-10% increase in 3 months\n`;
+        } else if (fitnessGoals.includes('strength')) {
+          response += `• Strength gains: 10-20% increase in 6 months\n`;
+          response += `• Power development: Improved explosive strength in 3-6 months\n`;
+        }
+        
+        // Predict performance trends
+        if (workoutLogs && workoutLogs.length > 0) {
+          response += `\n**Performance Trend Predictions:**\n`;
+          
+          const recentWorkouts = workoutLogs
+            .filter(log => log.completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 10);
+          
+          if (recentWorkouts.length >= 5) {
+            const avgRating = recentWorkouts.reduce((sum, workout) => 
+              sum + (workout.rating || 0), 0) / recentWorkouts.length;
+            
+            response += `• Average workout rating: ${avgRating.toFixed(1)}/5\n`;
+            
+            if (avgRating > 4) {
+              response += `• Trend: Excellent performance - consider increasing intensity\n`;
+            } else if (avgRating > 3) {
+              response += `• Trend: Good performance - maintain current approach\n`;
+            } else {
+              response += `• Trend: Room for improvement - focus on form and consistency\n`;
+            }
+          }
+        }
+        
+        // Risk assessment
+        response += `\n**Risk Assessment:**\n`;
+        
+        if (workoutLogs && workoutLogs.length > 0) {
+          const lastWorkout = workoutLogs
+            .filter(log => log.completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          if (lastWorkout) {
+            const daysSinceLastWorkout = Math.floor((Date.now() - new Date(lastWorkout.date).getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceLastWorkout > 7) {
+              response += `• Risk: Losing fitness gains due to inactivity\n`;
+              response += `• Recommendation: Schedule a workout within 2 days\n`;
+            } else if (daysSinceLastWorkout < 1) {
+              response += `• Risk: Overtraining if working out daily\n`;
+              response += `• Recommendation: Include rest days in routine\n`;
+            } else {
+              response += `• Risk: Low - maintaining good workout frequency\n`;
+            }
+          }
+        }
+        
+        response += `\n**Need help optimizing your training for better predictions?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble generating predictions right now. Try asking about specific predictions like "when will I reach my goal" or "predict my next PR".`;
+      }
+    }
+    
+    return null;
+  };
+  
+  const handleAdvancedPersonalizationRequest = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('personalize') || lowerMessage.includes('customize') || 
+        lowerMessage.includes('preference') || lowerMessage.includes('learning') ||
+        lowerMessage.includes('style') || lowerMessage.includes('adapt') ||
+        lowerMessage.includes('profile') || lowerMessage.includes('settings')) {
+      
+      try {
+        const { userProfile, aiPersonality, conversationMemory } = useAiStore.getState();
+        const { workoutLogs } = useWorkoutStore.getState();
+        
+        let response = `🎯 **Advanced Personalization**\n\n`;
+        
+        // Analyze user preferences and patterns
+        response += `**Current Profile Analysis:**\n`;
+        
+        if (userProfile) {
+          response += `• Experience Level: ${userProfile.experienceLevel}\n`;
+          response += `• Preferred Workout Time: ${userProfile.preferredWorkoutTime}\n`;
+          response += `• Motivation Style: ${userProfile.motivationStyle}\n`;
+          response += `• Fitness Goals: ${userProfile.fitnessGoals.join(', ')}\n`;
+          
+          if (userProfile.favoriteExercises.length > 0) {
+            response += `• Favorite Exercises: ${userProfile.favoriteExercises.join(', ')}\n`;
+          }
+          
+          if (userProfile.dislikedExercises.length > 0) {
+            response += `• Disliked Exercises: ${userProfile.dislikedExercises.join(', ')}\n`;
+          }
+        }
+        response += `\n`;
+        
+        // AI Personality Analysis
+        response += `**AI Personality Settings:**\n`;
+        if (aiPersonality) {
+          response += `• Name: ${aiPersonality.name}\n`;
+          response += `• Personality: ${aiPersonality.personality}\n`;
+          response += `• Expertise: ${aiPersonality.expertise}\n`;
+          response += `• Communication Style: ${aiPersonality.communicationStyle}\n`;
+        }
+        response += `\n`;
+        
+        // Learning Pattern Analysis
+        response += `**Learning Pattern Analysis:**\n`;
+        
+        if (workoutLogs && workoutLogs.length > 0) {
+          const completedWorkouts = workoutLogs.filter(log => log.completed);
+          
+          // Analyze workout timing preferences
+          const workoutTimes = completedWorkouts.map(workout => {
+            const workoutDate = new Date(workout.date);
+            const hour = workoutDate.getHours();
+            if (hour < 12) return 'morning';
+            else if (hour < 17) return 'afternoon';
+            else return 'evening';
+          });
+          
+          const timePreferences = workoutTimes.reduce((acc, time) => {
+            acc[time] = (acc[time] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const preferredTime = Object.entries(timePreferences)
+            .sort(([,a], [,b]) => b - a)[0];
+          
+          if (preferredTime) {
+            response += `• Preferred workout time: ${preferredTime[0]} (${preferredTime[1]} workouts)\n`;
+          }
+          
+          // Analyze workout duration preferences
+          const durations = completedWorkouts.map(w => w.duration || 0).filter(d => d > 0);
+          if (durations.length > 0) {
+            const avgDuration = durations.reduce((sum, d) => sum + d, 0) / durations.length;
+            response += `• Average workout duration: ${Math.round(avgDuration)} minutes\n`;
+          }
+          
+          // Analyze workout type preferences
+          const workoutTypes = completedWorkouts.reduce((acc, workout) => {
+            const type = workout.workoutType || 'General';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          const topWorkoutTypes = Object.entries(workoutTypes)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+          
+          if (topWorkoutTypes.length > 0) {
+            response += `• Top workout preferences:\n`;
+            topWorkoutTypes.forEach(([type, count]) => {
+              response += `  - ${type}: ${count} times\n`;
+            });
+          }
+        }
+        response += `\n`;
+        
+        // Conversation Memory Analysis
+        response += `**Conversation Memory:**\n`;
+        if (conversationMemory && conversationMemory.length > 0) {
+          response += `• Recent topics discussed: ${conversationMemory.length} items\n`;
+          response += `• Memory items: ${conversationMemory.slice(-5).join(', ')}\n`;
+        } else {
+          response += `• No recent conversation memory stored\n`;
+        }
+        response += `\n`;
+        
+        // Personalized Recommendations
+        response += `**Personalized Recommendations:**\n`;
+        
+        if (userProfile) {
+          // Based on experience level
+          if (userProfile.experienceLevel === 'beginner') {
+            response += `• Focus on form and consistency over intensity\n`;
+            response += `• Start with 3-4 workouts per week\n`;
+            response += `• Include rest days between workouts\n`;
+          } else if (userProfile.experienceLevel === 'intermediate') {
+            response += `• Implement progressive overload principles\n`;
+            response += `• Consider periodization training\n`;
+            response += `• Add variety to prevent plateaus\n`;
+          } else {
+            response += `• Focus on specialized training programs\n`;
+            response += `• Implement advanced techniques\n`;
+            response += `• Consider working with a coach\n`;
+          }
+          
+          // Based on motivation style
+          if (userProfile.motivationStyle === 'achievement') {
+            response += `• Set specific, measurable goals\n`;
+            response += `• Track progress regularly\n`;
+            response += `• Celebrate milestones\n`;
+          } else if (userProfile.motivationStyle === 'social') {
+            response += `• Find a workout buddy\n`;
+            response += `• Join fitness communities\n`;
+            response += `• Share progress with friends\n`;
+          } else if (userProfile.motivationStyle === 'health') {
+            response += `• Focus on health benefits\n`;
+            response += `• Monitor health metrics\n`;
+            response += `• Emphasize long-term wellness\n`;
+          } else if (userProfile.motivationStyle === 'appearance') {
+            response += `• Focus on body composition goals\n`;
+            response += `• Track measurements and photos\n`;
+            response += `• Emphasize aesthetic improvements\n`;
+          }
+        }
+        response += `\n`;
+        
+        // Adaptive Learning Suggestions
+        response += `**Adaptive Learning Suggestions:**\n`;
+        
+        if (workoutLogs && workoutLogs.length > 0) {
+          const recentWorkouts = workoutLogs
+            .filter(log => log.completed)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 10);
+          
+          const avgRating = recentWorkouts.reduce((sum, workout) => 
+            sum + (workout.rating || 0), 0) / recentWorkouts.length;
+          
+          if (avgRating < 3) {
+            response += `• Consider adjusting workout intensity\n`;
+            response += `• Focus on exercises you enjoy\n`;
+            response += `• Try different workout types\n`;
+          } else if (avgRating > 4) {
+            response += `• You're enjoying your workouts!\n`;
+            response += `• Consider increasing challenge\n`;
+            response += `• Try new variations of favorite exercises\n`;
+          }
+        }
+        
+        // Personalization Settings
+        response += `\n**Personalization Settings:**\n`;
+        response += `• AI Personality: Can be adjusted based on preference\n`;
+        response += `• Communication Style: Adapts to your learning style\n`;
+        response += `• Workout Recommendations: Based on your preferences\n`;
+        response += `• Goal Tracking: Personalized to your motivation style\n`;
+        response += `• Progress Analysis: Tailored to your experience level\n\n`;
+        
+        response += `**Want to customize any of these settings?**`;
+        
+        return response;
+      } catch (error) {
+        return `I'm having trouble analyzing your personalization settings right now. Try asking about specific preferences or learning styles.`;
       }
     }
     
