@@ -1692,7 +1692,19 @@ GOAL CREATION EXAMPLES:
     let duration = 45;
     
     // Parse workout type
-    if (lowerMessage.includes('push') && lowerMessage.includes('pull')) {
+    if (lowerMessage.includes('chest') || lowerMessage.includes('pec')) {
+      workoutType = 'chest';
+    } else if (lowerMessage.includes('back')) {
+      workoutType = 'back';
+    } else if (lowerMessage.includes('shoulder')) {
+      workoutType = 'shoulders';
+    } else if (lowerMessage.includes('arm')) {
+      workoutType = 'arms';
+    } else if (lowerMessage.includes('leg')) {
+      workoutType = 'legs';
+    } else if (lowerMessage.includes('core') || lowerMessage.includes('abs')) {
+      workoutType = 'core';
+    } else if (lowerMessage.includes('push') && lowerMessage.includes('pull')) {
       workoutType = 'push_pull';
     } else if (lowerMessage.includes('push')) {
       workoutType = 'push';
@@ -1706,18 +1718,6 @@ GOAL CREATION EXAMPLES:
       workoutType = 'lower';
     } else if (lowerMessage.includes('full body') || lowerMessage.includes('fullbody')) {
       workoutType = 'full_body';
-    } else if (lowerMessage.includes('leg')) {
-      workoutType = 'legs';
-    } else if (lowerMessage.includes('chest') || lowerMessage.includes('pec')) {
-      workoutType = 'chest';
-    } else if (lowerMessage.includes('back')) {
-      workoutType = 'back';
-    } else if (lowerMessage.includes('shoulder')) {
-      workoutType = 'shoulders';
-    } else if (lowerMessage.includes('arm')) {
-      workoutType = 'arms';
-    } else if (lowerMessage.includes('core') || lowerMessage.includes('abs')) {
-      workoutType = 'core';
     }
     
     // Parse sets and reps with user context
@@ -1854,25 +1854,21 @@ GOAL CREATION EXAMPLES:
     switch (workoutType) {
       case 'push':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg))
         ).slice(0, 6);
         
       case 'pull':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg))
         ).slice(0, 6);
         
       case 'push_pull':
         const pushExercises = exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg))
         ).slice(0, 3);
         
         const pullExercises = exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg))
         ).slice(0, 3);
         
         return [...pushExercises, ...pullExercises];
