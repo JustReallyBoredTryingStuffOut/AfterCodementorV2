@@ -715,13 +715,13 @@ export default function CreateWorkoutScreen() {
                   <View style={styles.exerciseListItemContent}>
                     <Text style={[styles.exerciseListItemName, { color: colors.text }]}>{item.name}</Text>
                     <Text style={[styles.exerciseListItemDetails, { color: colors.textSecondary }]}>
-                      {item.bodyRegion} • {item.muscleGroups.join(", ")}
+                      {item.bodyRegion} • {Array.isArray(item.muscleGroups) ? item.muscleGroups.map(mg => typeof mg === 'string' ? mg : mg.name || mg.id || 'Unknown').join(", ") : 'No muscle groups'}
                     </Text>
                     <View style={styles.exerciseListItemEquipment}>
                       {item.equipment.map(eq => (
-                        <View key={eq} style={styles.equipmentTag}>
+                        <View key={typeof eq === 'string' ? eq : eq.id || eq.name || 'Unknown'} style={styles.equipmentTag}>
                           <Dumbbell size={10} color={colors.textSecondary} />
-                          <Text style={[styles.equipmentTagText, { color: colors.textSecondary }]}>{eq}</Text>
+                          <Text style={[styles.equipmentTagText, { color: colors.textSecondary }]}>{typeof eq === 'string' ? eq : eq.name || eq.id || 'Unknown'}</Text>
                         </View>
                       ))}
                     </View>
