@@ -1854,24 +1854,24 @@ GOAL CREATION EXAMPLES:
     switch (workoutType) {
       case 'push':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 6);
         
       case 'pull':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 6);
         
       case 'push_pull':
         const pushExercises = exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Chest', 'Shoulders', 'Triceps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 3);
         
         const pullExercises = exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Back', 'Biceps', 'Traps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 3);
         
@@ -1896,38 +1896,38 @@ GOAL CREATION EXAMPLES:
         
       case 'legs':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 6);
         
       case 'chest':
         const chestExercises = exercises.filter(ex => 
-          ex.muscleGroups.some(mg => mg.name === 'Chest')
+          ex.muscleGroups.some(mg => mg === 'Chest')
         );
         console.log(`[AI Chat] Found ${chestExercises.length} chest exercises`);
         return chestExercises.slice(0, 4);
         
       case 'back':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Lats', 'Traps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Back', 'Lats', 'Traps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 4);
         
       case 'shoulders':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => mg.name === 'Shoulders') &&
+          ex.muscleGroups.some(mg => mg === 'Shoulders') &&
           ex.difficulty === difficulty
         ).slice(0, 4);
         
       case 'arms':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Biceps', 'Triceps'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Biceps', 'Triceps'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 4);
         
       case 'core':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Abs', 'Core'].includes(mg.name)) &&
+          ex.muscleGroups.some(mg => ['Abs', 'Core'].includes(mg)) &&
           ex.difficulty === difficulty
         ).slice(0, 4);
         
