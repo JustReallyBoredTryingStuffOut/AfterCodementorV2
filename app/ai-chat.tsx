@@ -1237,18 +1237,6 @@ GOAL CREATION EXAMPLES:
         return;
       }
 
-      // Check if it's a predictive analytics request
-      const predictiveResponse = await handlePredictiveRequest(userInput);
-      if (predictiveResponse) {
-        addMessageToChat(currentChat.id, {
-          role: "assistant",
-          content: predictiveResponse,
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        return;
-      }
-
       // Check if it's a workout analysis request
       const workoutAnalysisResponse = await handleWorkoutAnalysisRequest(userInput);
       if (workoutAnalysisResponse) {
