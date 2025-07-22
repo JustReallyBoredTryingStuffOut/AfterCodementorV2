@@ -35,7 +35,8 @@ import {
   Lightbulb,
   Award,
   Trophy,
-  ArrowLeft
+  ArrowLeft,
+  BarChart3
 } from "lucide-react-native";
 import * as Speech from 'expo-speech';
 import { useTheme } from "@/context/ThemeContext";
@@ -853,6 +854,22 @@ export default function HomeScreen() {
           />
         </View>
         <CaloriesTracker compact />
+        
+        {/* Health Data Viewer Button */}
+        <TouchableOpacity 
+          style={[styles.dataViewerButton, { backgroundColor: colors.card }]}
+          onPress={() => router.push("/health-data-viewer")}
+        >
+          <View style={styles.dataViewerContent}>
+            <BarChart3 size={20} color={colors.primary} />
+            <Text style={[styles.dataViewerText, { color: colors.text }]}>
+              View Health Data
+            </Text>
+          </View>
+          <Text style={[styles.dataViewerSubtext, { color: colors.textSecondary }]}>
+            Steps, Calories, History
+          </Text>
+        </TouchableOpacity>
       </View>
       
       {/* Mood-based Advice Banner */}
@@ -2357,5 +2374,30 @@ const styles = StyleSheet.create({
   enableButtonText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  // Data Viewer Button Styles
+  dataViewerButton: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  dataViewerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dataViewerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  dataViewerSubtext: {
+    fontSize: 12,
+    marginLeft: 28,
   },
 });

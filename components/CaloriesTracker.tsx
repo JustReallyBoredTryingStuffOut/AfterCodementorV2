@@ -4,12 +4,14 @@ import { Flame, RefreshCw, Zap, Watch, AlertTriangle } from "lucide-react-native
 import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import HealthKit from "@/src/NativeModules/HealthKit";
+import { useRouter } from "expo-router";
 
 type CaloriesTrackerProps = {
   compact?: boolean;
 };
 
 export default function CaloriesTracker({ compact = false }: CaloriesTrackerProps) {
+  const router = useRouter();
   const { healthGoals, isAppleWatchConnected } = useHealthStore();
   const [currentCalories, setCurrentCalories] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -19,6 +21,10 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
   // Calculate progress percentage (assuming 500 calories as daily goal)
   const dailyCalorieGoal = 500; // This could be made configurable
   const progressPercentage = Math.min(100, (currentCalories / dailyCalorieGoal) * 100);
+
+  const handleCaloriesCardPress = () => {
+    router.push("/calories-data-detail");
+  };
   
   // Sync calories from HealthKit
   const syncCaloriesFromHealthKit = async () => {
@@ -100,17 +106,25 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
   
   if (Platform.OS === "web") {
     return (
-      <View style={[styles.container, compact && styles.compactContainer]}>
+      <TouchableOpacity 
+        style={[styles.container, compact && styles.compactContainer]}
+        onPress={handleCaloriesCardPress}
+        activeOpacity={0.7}
+      >
         <Text style={styles.notAvailableText}>
           Calories tracking is not available on web
         </Text>
-      </View>
+      </TouchableOpacity>
     );
   }
   
   if (compact) {
     return (
-      <View style={styles.compactContainer}>
+      <TouchableOpacity 
+        style={styles.compactContainer}
+        onPress={handleCaloriesCardPress}
+        activeOpacity={0.7}
+      >
         <View style={styles.compactContent}>
           <Flame size={20} color={colors.primary} />
           <Text style={styles.compactCalories}>
@@ -145,12 +159,16 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
             {Math.round(progressPercentage)}% of {dailyCalorieGoal.toLocaleString()}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={handleCaloriesCardPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Calories Burned</Text>
         <View style={styles.headerButtons}>
@@ -215,7 +233,7 @@ export default function CaloriesTracker({ compact = false }: CaloriesTrackerProp
           {Math.round(progressPercentage)}% of daily goal ({dailyCalorieGoal.toLocaleString()} calories)
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

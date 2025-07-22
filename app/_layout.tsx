@@ -14,6 +14,8 @@ import CustomDropdown from '@/components/CustomDropdown';
 import Button from '@/components/Button';
 import { LinearGradient } from 'expo-linear-gradient';
 import NotificationHandler from '@/components/NotificationHandler';
+import NotificationPermissionModal from '@/components/NotificationPermissionModal';
+import { useNotificationPermission } from '@/hooks/useNotificationPermission';
 import HealthKit from '@/src/NativeModules/HealthKit';
 
 // App name
@@ -26,6 +28,14 @@ export default function RootLayout() {
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [appState, setAppState] = useState(AppState.currentState);
+  
+  // Notification permission hook
+  const {
+    showPermissionModal,
+    hasCheckedPermission,
+    handlePermissionGranted,
+    handlePermissionDeclined,
+  } = useNotificationPermission();
   
   const { 
     gamificationEnabled, 
@@ -1079,6 +1089,13 @@ export default function RootLayout() {
         <>
           <NotificationHandler />
           <Stack screenOptions={{ headerShown: false }} />
+          
+          {/* Notification Permission Modal */}
+          <NotificationPermissionModal
+            visible={showPermissionModal}
+            onClose={handlePermissionDeclined}
+            onPermissionGranted={handlePermissionGranted}
+          />
         </>
       )}
     </ThemeProvider>

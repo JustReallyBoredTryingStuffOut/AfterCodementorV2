@@ -5,12 +5,14 @@ import { colors } from "@/constants/colors";
 import { useHealthStore } from "@/store/healthStore";
 import { useGamificationStore } from "@/store/gamificationStore";
 import useStepCounter from "@/hooks/useStepCounter";
+import { useRouter } from "expo-router";
 
 type StepCounterProps = {
   compact?: boolean;
 };
 
 export default function StepCounter({ compact = false }: StepCounterProps) {
+  const router = useRouter();
   const { healthGoals, isAppleWatchConnected } = useHealthStore();
   const { getActiveDailyQuests } = useGamificationStore();
   const { 
@@ -54,17 +56,11 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
   
   // Calculate progress percentage
   const progressPercentage = Math.min(100, (currentStepCount / stepGoal) * 100);
-  
-  if (Platform.OS === "web") {
-    return (
-      <View style={[styles.container, compact && styles.compactContainer]}>
-        <Text style={styles.notAvailableText}>
-          Step counting is not available on web
-        </Text>
-      </View>
-    );
-  }
-  
+
+  const handleStepCardPress = () => {
+    router.push("/step-data-detail");
+  };
+
   const handleSync = async () => {
     if (!isUsingConnectedDevice && dataSource !== "healthKit") {
       Alert.alert("No Data Source", "No connected device or health data source to sync with");
@@ -99,9 +95,27 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
     return "Unknown";
   };
   
+  if (Platform.OS === "web") {
+    return (
+      <TouchableOpacity 
+        style={[styles.container, compact && styles.compactContainer]}
+        onPress={handleStepCardPress}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.notAvailableText}>
+          Step counting is not available on web
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+  
   if (compact) {
     return (
-      <View style={styles.compactContainer}>
+      <TouchableOpacity 
+        style={styles.compactContainer}
+        onPress={handleStepCardPress}
+        activeOpacity={0.7}
+      >
         <View style={styles.compactContent}>
           <Award size={20} color={colors.primary} />
           <Text style={styles.compactSteps}>{currentStepCount.toLocaleString()}</Text>
@@ -134,12 +148,16 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
             {Math.round(progressPercentage)}% of {stepGoal.toLocaleString()}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={handleStepCardPress}
+      activeOpacity={0.7}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Daily Steps</Text>
         <View style={styles.headerButtons}>
@@ -181,8 +199,6 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
           {currentStepCount.toLocaleString()}
         </Text>
         <Text style={styles.stepsLabel}>steps today</Text>
-        
-
         
         {dataSource === "healthKit" && (
           <View style={styles.dataSourceContainer}>
@@ -235,7 +251,7 @@ export default function StepCounter({ compact = false }: StepCounterProps) {
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

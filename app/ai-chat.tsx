@@ -27,6 +27,16 @@ import AIPersonalizationModal from "@/components/AIPersonalizationModal";
 import AIOnboardingScreen from "@/components/AIOnboardingScreen";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Add conversation state management
+interface ConversationState {
+  isWaitingForResponse: boolean;
+  waitingFor: string;
+  context: any;
+  functionType: string;
+  step: number;
+  totalSteps: number;
+}
+
 export default function AiChatScreen() {
   const router = useRouter();
   const { colors } = useTheme();
@@ -107,6 +117,16 @@ export default function AiChatScreen() {
   const [showOnboarding, setShowOnboarding] = useState(!hasCompletedOnboarding);
   
   const flatListRef = useRef<FlatList>(null);
+  
+  // Add conversation state to the component
+  const [conversationState, setConversationState] = useState<ConversationState>({
+    isWaitingForResponse: false,
+    waitingFor: '',
+    context: {},
+    functionType: '',
+    step: 0,
+    totalSteps: 0
+  });
   
   // Smart context function to gather user data
   const getUserContext = () => {
@@ -1141,6 +1161,30 @@ GOAL CREATION EXAMPLES:
         return;
       }
 
+      // Check if it's a smart conversation flow request
+      const smartConversationResponse = await handleSmartConversationFlow(userInput);
+      if (smartConversationResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: smartConversationResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if it's an interactive workout scheduling request
+      const interactiveSchedulingResponse = await handleInteractiveWorkoutScheduling(userInput);
+      if (interactiveSchedulingResponse) {
+        addMessageToChat(currentChat.id, {
+          role: "assistant",
+          content: interactiveSchedulingResponse,
+          timestamp: new Date().toISOString()
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Check if it's a workout scheduling request (enhanced)
       const workoutSchedulingResponse = await handleWorkoutSchedulingRequest(userInput);
       if (workoutSchedulingResponse) {
@@ -1752,32 +1796,49 @@ GOAL CREATION EXAMPLES:
     let duration = 45;
     
     // Parse workout type
+    console.log(`[AI Chat] Parsing workout type from message: "${lowerMessage}"`);
+    
     if (lowerMessage.includes('chest') || lowerMessage.includes('pec')) {
       workoutType = 'chest';
+      console.log(`[AI Chat] Detected chest workout`);
     } else if (lowerMessage.includes('back')) {
       workoutType = 'back';
+      console.log(`[AI Chat] Detected back workout`);
     } else if (lowerMessage.includes('shoulder')) {
       workoutType = 'shoulders';
+      console.log(`[AI Chat] Detected shoulders workout`);
     } else if (lowerMessage.includes('arm')) {
       workoutType = 'arms';
+      console.log(`[AI Chat] Detected arms workout`);
     } else if (lowerMessage.includes('leg')) {
       workoutType = 'legs';
+      console.log(`[AI Chat] Detected legs workout`);
     } else if (lowerMessage.includes('core') || lowerMessage.includes('abs')) {
       workoutType = 'core';
+      console.log(`[AI Chat] Detected core workout`);
     } else if (lowerMessage.includes('push') && lowerMessage.includes('pull')) {
       workoutType = 'push_pull';
+      console.log(`[AI Chat] Detected push/pull workout`);
     } else if (lowerMessage.includes('push')) {
       workoutType = 'push';
+      console.log(`[AI Chat] Detected push workout`);
     } else if (lowerMessage.includes('pull')) {
       workoutType = 'pull';
+      console.log(`[AI Chat] Detected pull workout`);
     } else if (lowerMessage.includes('upper') && lowerMessage.includes('lower')) {
       workoutType = 'upper_lower';
+      console.log(`[AI Chat] Detected upper/lower workout`);
     } else if (lowerMessage.includes('upper')) {
       workoutType = 'upper';
+      console.log(`[AI Chat] Detected upper workout`);
     } else if (lowerMessage.includes('lower')) {
       workoutType = 'lower';
+      console.log(`[AI Chat] Detected lower workout`);
     } else if (lowerMessage.includes('full body') || lowerMessage.includes('fullbody')) {
       workoutType = 'full_body';
+      console.log(`[AI Chat] Detected full body workout`);
+    } else {
+      console.log(`[AI Chat] No specific workout type detected, using default: ${workoutType}`);
     }
     
     // Parse sets and reps with user context
@@ -1885,6 +1946,7 @@ GOAL CREATION EXAMPLES:
     
     // Create workout name
     const workoutName = generateWorkoutName(workoutType, muscleGroups);
+    console.log(`[AI Chat] Generated workout name: "${workoutName}" for type: ${workoutType}`);
     
     // Create the workout object
     const workout = {
@@ -1897,8 +1959,8 @@ GOAL CREATION EXAMPLES:
       category: 'Strength',
       estimatedDuration: duration,
       intensity: difficulty === "beginner" ? "low" : difficulty === "intermediate" ? "medium" : "high",
-      muscleGroups: Array.from(new Set(finalExercises.flatMap(ex => ex.muscleGroups.map(mg => mg.name)))),
-      equipment: Array.from(new Set(finalExercises.flatMap(ex => ex.equipment.map(eq => eq.name)))),
+      muscleGroups: Array.from(new Set(finalExercises.flatMap(ex => ex.muscleGroups))),
+      equipment: Array.from(new Set(finalExercises.flatMap(ex => ex.equipment))),
       image: finalExercises[0]?.imageUrl || "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
     };
     
@@ -1952,8 +2014,7 @@ GOAL CREATION EXAMPLES:
         
       case 'legs':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'].includes(mg))
         ).slice(0, 6);
         
       case 'chest':
@@ -1965,26 +2026,22 @@ GOAL CREATION EXAMPLES:
         
       case 'back':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Back', 'Lats', 'Traps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Back', 'Lats', 'Traps'].includes(mg))
         ).slice(0, 4);
         
       case 'shoulders':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => mg === 'Shoulders') &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => mg === 'Shoulders')
         ).slice(0, 4);
         
       case 'arms':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Biceps', 'Triceps'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Biceps', 'Triceps'].includes(mg))
         ).slice(0, 4);
         
       case 'core':
         return exercises.filter(ex => 
-          ex.muscleGroups.some(mg => ['Abs', 'Core'].includes(mg)) &&
-          ex.difficulty === difficulty
+          ex.muscleGroups.some(mg => ['Abs', 'Core'].includes(mg))
         ).slice(0, 4);
         
       default:
@@ -5426,7 +5483,1012 @@ GOAL CREATION EXAMPLES:
     
     return null;
   };
+
+  const handleInteractiveWorkoutScheduling = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Check if this is a basic workout scheduling request
+    const isBasicSchedulingRequest = (
+      lowerMessage.includes('schedule') && lowerMessage.includes('workout') ||
+      lowerMessage.includes('add') && lowerMessage.includes('workout') ||
+      lowerMessage.includes('book') && lowerMessage.includes('workout')
+    );
+    
+    if (isBasicSchedulingRequest) {
+      // Check if we have enough information
+      const hasDate = lowerMessage.includes('today') || lowerMessage.includes('tomorrow') || 
+                     lowerMessage.includes('monday') || lowerMessage.includes('tuesday') || 
+                     lowerMessage.includes('wednesday') || lowerMessage.includes('thursday') || 
+                     lowerMessage.includes('friday') || lowerMessage.includes('saturday') || 
+                     lowerMessage.includes('sunday') || /\d{1,2}\/\d{1,2}/.test(lowerMessage) ||
+                     /\d{1,2}-\d{1,2}/.test(lowerMessage);
+      
+      const hasTime = /\d{1,2}:\d{2}/.test(lowerMessage) || 
+                     lowerMessage.includes('morning') || lowerMessage.includes('afternoon') || 
+                     lowerMessage.includes('evening') || lowerMessage.includes('night');
+      
+      const hasWorkoutType = lowerMessage.includes('chest') || lowerMessage.includes('back') || 
+                           lowerMessage.includes('shoulder') || lowerMessage.includes('leg') || 
+                           lowerMessage.includes('arm') || lowerMessage.includes('core') || 
+                           lowerMessage.includes('push') || lowerMessage.includes('pull') || 
+                           lowerMessage.includes('full body');
+      
+      if (!hasDate || !hasTime || !hasWorkoutType) {
+        // Set conversation state to wait for more information
+        setConversationState({
+          isWaitingForResponse: true,
+          waitingFor: 'workout_details',
+          context: {
+            originalRequest: message,
+            hasDate,
+            hasTime,
+            hasWorkoutType
+          }
+        });
+        
+        // Generate follow-up questions
+        let followUpQuestions = "I'd be happy to schedule a workout for you! To make sure I create the perfect workout, I need a few details:\\n\\n";
+        
+        if (!hasDate) {
+          followUpQuestions += "📅 **When would you like to work out?**\\n";
+          followUpQuestions += "• Today\\n";
+          followUpQuestions += "• Tomorrow\\n";
+          followUpQuestions += "• Specific day (Monday, Tuesday, etc.)\\n";
+          followUpQuestions += "• Specific date (e.g., 22/07)\\n\\n";
+        }
+        
+        if (!hasTime) {
+          followUpQuestions += "⏰ **What time works best for you?**\\n";
+          followUpQuestions += "• Morning (6-9 AM)\\n";
+          followUpQuestions += "• Afternoon (12-3 PM)\\n";
+          followUpQuestions += "• Evening (6-9 PM)\\n";
+          followUpQuestions += "• Specific time (e.g., 18:00)\\n\\n";
+        }
+        
+        if (!hasWorkoutType) {
+          followUpQuestions += "💪 **What type of workout would you prefer?**\\n";
+          followUpQuestions += "• Chest workout\\n";
+          followUpQuestions += "• Back workout\\n";
+          followUpQuestions += "• Shoulder workout\\n";
+          followUpQuestions += "• Leg workout\\n";
+          followUpQuestions += "• Full body workout\\n";
+          followUpQuestions += "• Push/Pull workout\\n";
+          followUpQuestions += "• Or let me recommend based on your goals\\n\\n";
+        }
+        
+        followUpQuestions += "Just reply with the details and I'll schedule it for you! 🎯";
+        
+        return followUpQuestions;
+      }
+    }
+    
+    // Check if we're waiting for workout details and user is providing them
+    if (conversationState.isWaitingForResponse && conversationState.waitingFor === 'workout_details') {
+      const context = conversationState.context;
+      
+      // Parse the new information
+      const newInfo = parseWorkoutDetailsFromResponse(message, context);
+      
+      // Check if we now have all the information
+      const hasAllInfo = newInfo.hasDate && newInfo.hasTime && newInfo.hasWorkoutType;
+      
+      if (hasAllInfo) {
+        // Clear conversation state
+        setConversationState({
+          isWaitingForResponse: false,
+          waitingFor: '',
+          context: {}
+        });
+        
+        // Create the complete request and schedule
+        const completeRequest = `${newInfo.workoutType} workout for ${newInfo.date} at ${newInfo.time}`;
+        return await handleCompleteWorkoutScheduling(completeRequest);
+      } else {
+        // Still missing information, ask for remaining details
+        let followUpQuestions = "Great! I got some of the details. I still need:\\n\\n";
+        
+        if (!newInfo.hasDate) {
+          followUpQuestions += "📅 **When would you like to work out?**\\n";
+          followUpQuestions += "• Today\\n";
+          followUpQuestions += "• Tomorrow\\n";
+          followUpQuestions += "• Specific day or date\\n\\n";
+        }
+        
+        if (!newInfo.hasTime) {
+          followUpQuestions += "⏰ **What time works best for you?**\\n";
+          followUpQuestions += "• Morning, afternoon, evening\\n";
+          followUpQuestions += "• Or specific time (e.g., 18:00)\\n\\n";
+        }
+        
+        if (!newInfo.hasWorkoutType) {
+          followUpQuestions += "💪 **What type of workout would you prefer?**\\n";
+          followUpQuestions += "• Chest, back, shoulders, legs, full body\\n";
+          followUpQuestions += "• Or let me recommend based on your goals\\n\\n";
+        }
+        
+        // Update conversation state with new context
+        setConversationState({
+          isWaitingForResponse: true,
+          waitingFor: 'workout_details',
+          context: {
+            ...context,
+            ...newInfo
+          }
+        });
+        
+        return followUpQuestions;
+      }
+    }
+    
+    return null; // Not a workout scheduling request
+  };
+
+  const parseWorkoutDetailsFromResponse = (message: string, context: any) => {
+    const lowerMessage = message.toLowerCase();
+    const result = {
+      hasDate: context.hasDate || false,
+      hasTime: context.hasTime || false,
+      hasWorkoutType: context.hasWorkoutType || false,
+      date: context.date || '',
+      time: context.time || '',
+      workoutType: context.workoutType || ''
+    };
+    
+    // Parse date
+    if (!result.hasDate) {
+      if (lowerMessage.includes('today')) {
+        result.date = new Date().toISOString().split('T')[0];
+        result.hasDate = true;
+      } else if (lowerMessage.includes('tomorrow')) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        result.date = tomorrow.toISOString().split('T')[0];
+        result.hasDate = true;
+      } else if (lowerMessage.includes('monday')) {
+        result.date = 'monday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('tuesday')) {
+        result.date = 'tuesday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('wednesday')) {
+        result.date = 'wednesday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('thursday')) {
+        result.date = 'thursday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('friday')) {
+        result.date = 'friday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('saturday')) {
+        result.date = 'saturday';
+        result.hasDate = true;
+      } else if (lowerMessage.includes('sunday')) {
+        result.date = 'sunday';
+        result.hasDate = true;
+      } else {
+        // Check for date patterns
+        const dateMatch = lowerMessage.match(/(\d{1,2})\/(\d{1,2})/);
+        if (dateMatch) {
+          result.date = `${dateMatch[1]}/${dateMatch[2]}`;
+          result.hasDate = true;
+        }
+      }
+    }
+    
+    // Parse time
+    if (!result.hasTime) {
+      if (lowerMessage.includes('morning')) {
+        result.time = '08:00';
+        result.hasTime = true;
+      } else if (lowerMessage.includes('afternoon')) {
+        result.time = '14:00';
+        result.hasTime = true;
+      } else if (lowerMessage.includes('evening')) {
+        result.time = '18:00';
+        result.hasTime = true;
+      } else if (lowerMessage.includes('night')) {
+        result.time = '20:00';
+        result.hasTime = true;
+      } else {
+        // Check for time patterns
+        const timeMatch = lowerMessage.match(/(\d{1,2}):(\d{2})/);
+        if (timeMatch) {
+          result.time = `${timeMatch[1]}:${timeMatch[2]}`;
+          result.hasTime = true;
+        }
+      }
+    }
+    
+    // Parse workout type
+    if (!result.hasWorkoutType) {
+      if (lowerMessage.includes('chest')) {
+        result.workoutType = 'chest';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('back')) {
+        result.workoutType = 'back';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('shoulder')) {
+        result.workoutType = 'shoulders';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('leg')) {
+        result.workoutType = 'legs';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('arm')) {
+        result.workoutType = 'arms';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('core')) {
+        result.workoutType = 'core';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('full body')) {
+        result.workoutType = 'full_body';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('push')) {
+        result.workoutType = 'push';
+        result.hasWorkoutType = true;
+      } else if (lowerMessage.includes('pull')) {
+        result.workoutType = 'pull';
+        result.hasWorkoutType = true;
+      }
+    }
+    
+    return result;
+  };
+
+  const handleCompleteWorkoutScheduling = async (completeRequest: string): Promise<string> => {
+    try {
+      // Parse the complete request
+      const scheduleInfo = parseScheduleRequest(completeRequest);
+      const workoutType = parseWorkoutTypeFromRequest(completeRequest);
+      
+      if (workoutType && scheduleInfo) {
+        // Create a custom workout based on the type
+        const userFitnessLevel = macroUserProfile?.experienceLevel || 'beginner';
+        const customWorkout = await createWorkoutFromRequest(`${workoutType} workout for ${userFitnessLevel} level`);
+        
+        if (customWorkout) {
+          // Schedule the workout
+          const scheduledTime = scheduleInfo.time || '18:30';
+          const scheduledDate = scheduleInfo.date || new Date().toISOString().split('T')[0];
+          
+          try {
+            await scheduleWorkout?.({
+              id: Date.now().toString(),
+              workoutId: customWorkout.id,
+              dayOfWeek: new Date(scheduledDate).getDay(),
+              time: scheduledTime,
+              duration: customWorkout.duration || 45,
+              completed: false
+            });
+            
+            return `🎉 **Perfect! Workout Scheduled Successfully!**\\n\\n` +
+                   `📅 **Date:** ${scheduledDate}\\n` +
+                   `⏰ **Time:** ${scheduledTime}\\n` +
+                   `💪 **Workout:** ${customWorkout.name}\\n` +
+                   `⏱️ **Duration:** ${customWorkout.duration || 45} minutes\\n` +
+                   `🏋️ **Difficulty:** ${userFitnessLevel}\\n\\n` +
+                   `✅ **Added to your schedule!**\\n` +
+                   `You'll get a reminder before your workout.`;
+          } catch (error) {
+            return `I've created a ${workoutType} workout for you, but there was an issue scheduling it. You can find the workout in your workout library and schedule it manually.`;
+          }
+        }
+      }
+      
+      return `I'm having trouble scheduling that workout. Could you please provide more specific details about when and what type of workout you'd like?`;
+    } catch (error) {
+      return `Sorry, I encountered an error while scheduling your workout. Please try again with more specific details.`;
+    }
+  };
+
+  const parseWorkoutTypeFromRequest = (message: string): string | null => {
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('chest')) return 'chest';
+    if (lowerMessage.includes('back')) return 'back';
+    if (lowerMessage.includes('shoulder')) return 'shoulders';
+    if (lowerMessage.includes('leg')) return 'legs';
+    if (lowerMessage.includes('arm')) return 'arms';
+    if (lowerMessage.includes('core')) return 'core';
+    if (lowerMessage.includes('full body')) return 'full_body';
+    if (lowerMessage.includes('push')) return 'push';
+    if (lowerMessage.includes('pull')) return 'pull';
+    
+    return null;
+  };
   
+  const handleSmartConversationFlow = async (message: string): Promise<string> => {
+    const lowerMessage = message.toLowerCase();
+    
+    // If we're already in a conversation flow, handle the response
+    if (conversationState.isWaitingForResponse) {
+      return await handleConversationResponse(message);
+    }
+    
+    // Detect function types and start conversation flows
+    const detectedFunction = detectFunctionType(lowerMessage);
+    
+    if (detectedFunction) {
+      return await startConversationFlow(detectedFunction, message);
+    }
+    
+    return null; // Not a conversation flow request
+  };
+
+  const detectFunctionType = (message: string): string | null => {
+    // Workout Scheduling
+    if (message.includes('schedule') && message.includes('workout') ||
+        message.includes('add') && message.includes('workout') ||
+        message.includes('book') && message.includes('workout')) {
+      return 'workout_scheduling';
+    }
+    
+    // Goal Creation
+    if (message.includes('create') && message.includes('goal') ||
+        message.includes('set') && message.includes('goal') ||
+        message.includes('new goal')) {
+      return 'goal_creation';
+    }
+    
+    // Workout Creation
+    if (message.includes('create') && message.includes('workout') ||
+        message.includes('make') && message.includes('workout') ||
+        message.includes('build') && message.includes('workout')) {
+      return 'workout_creation';
+    }
+    
+    // Nutrition Planning
+    if (message.includes('nutrition') && (message.includes('plan') || message.includes('meal')) ||
+        message.includes('meal') && message.includes('plan') ||
+        message.includes('diet') && message.includes('plan')) {
+      return 'nutrition_planning';
+    }
+    
+    // Progress Tracking
+    if (message.includes('track') && message.includes('progress') ||
+        message.includes('monitor') && message.includes('progress') ||
+        message.includes('check') && message.includes('progress')) {
+      return 'progress_tracking';
+    }
+    
+    // Recovery Planning
+    if (message.includes('recovery') && message.includes('plan') ||
+        message.includes('rest') && message.includes('plan') ||
+        message.includes('rest day')) {
+      return 'recovery_planning';
+    }
+    
+    // Analytics Request
+    if (message.includes('analytics') || message.includes('analysis') ||
+        message.includes('insights') || message.includes('stats')) {
+      return 'analytics_request';
+    }
+    
+    // Personal Records
+    if (message.includes('personal record') || message.includes('pr') ||
+        message.includes('personal best') || message.includes('record')) {
+      return 'personal_records';
+    }
+    
+    // Exercise Education
+    if (message.includes('explain') || message.includes('how to') ||
+        message.includes('form') || message.includes('technique')) {
+      return 'exercise_education';
+    }
+    
+    return null;
+  };
+
+  const startConversationFlow = async (functionType: string, originalMessage: string): Promise<string> => {
+    const flowConfig = getFlowConfig(functionType);
+    
+    if (!flowConfig) {
+      return null;
+    }
+    
+    // Set conversation state
+    setConversationState({
+      isWaitingForResponse: true,
+      waitingFor: flowConfig.firstStep,
+      context: {
+        originalMessage,
+        functionType,
+        responses: {}
+      },
+      functionType,
+      step: 1,
+      totalSteps: flowConfig.steps.length
+    });
+    
+    return flowConfig.steps[0].question;
+  };
+
+  const getFlowConfig = (functionType: string) => {
+    const configs = {
+      workout_scheduling: {
+        firstStep: 'date',
+        steps: [
+          {
+            key: 'date',
+            question: "📅 **When would you like to work out?**\n• Today\n• Tomorrow\n• Specific day (Monday, Tuesday, etc.)\n• Specific date (e.g., 22/07)",
+            validation: (response: string) => validateDate(response)
+          },
+          {
+            key: 'time',
+            question: "⏰ **What time works best for you?**\n• Morning (6-9 AM)\n• Afternoon (12-3 PM)\n• Evening (6-9 PM)\n• Specific time (e.g., 18:00)",
+            validation: (response: string) => validateTime(response)
+          },
+          {
+            key: 'workout_type',
+            question: "💪 **What type of workout would you prefer?**\n• Chest workout\n• Back workout\n• Shoulder workout\n• Leg workout\n• Full body workout\n• Push/Pull workout\n• Or let me recommend based on your goals",
+            validation: (response: string) => validateWorkoutType(response)
+          }
+        ]
+      },
+      
+      goal_creation: {
+        firstStep: 'goal_type',
+        steps: [
+          {
+            key: 'goal_type',
+            question: "🎯 **What type of goal would you like to create?**\n• Weight loss\n• Muscle gain\n• Strength improvement\n• Endurance\n• Flexibility\n• General fitness",
+            validation: (response: string) => validateGoalType(response)
+          },
+          {
+            key: 'target_value',
+            question: "📊 **What's your target?**\n• For weight: Target weight in lbs/kg\n• For strength: Target weight for specific exercise\n• For endurance: Target time or distance\n• For flexibility: Target pose or measurement",
+            validation: (response: string) => validateTargetValue(response)
+          },
+          {
+            key: 'timeframe',
+            question: "⏱️ **What's your timeframe?**\n• 1 month\n• 3 months\n• 6 months\n• 1 year\n• Custom timeframe",
+            validation: (response: string) => validateTimeframe(response)
+          }
+        ]
+      },
+      
+      workout_creation: {
+        firstStep: 'workout_focus',
+        steps: [
+          {
+            key: 'workout_focus',
+            question: "🎯 **What should this workout focus on?**\n• Specific muscle group (chest, back, legs, etc.)\n• Movement pattern (push, pull, squat, hinge)\n• Fitness goal (strength, hypertrophy, endurance)\n• Equipment available (gym, home, bodyweight)",
+            validation: (response: string) => validateWorkoutFocus(response)
+          },
+          {
+            key: 'difficulty',
+            question: "🏋️ **What difficulty level?**\n• Beginner (new to exercise)\n• Intermediate (some experience)\n• Advanced (experienced lifter)",
+            validation: (response: string) => validateDifficulty(response)
+          },
+          {
+            key: 'duration',
+            question: "⏱️ **How long should the workout be?**\n• Quick (20-30 minutes)\n• Standard (45-60 minutes)\n• Extended (75-90 minutes)",
+            validation: (response: string) => validateDuration(response)
+          }
+        ]
+      },
+      
+      nutrition_planning: {
+        firstStep: 'nutrition_goal',
+        steps: [
+          {
+            key: 'nutrition_goal',
+            question: "🍎 **What's your nutrition goal?**\n• Weight loss\n• Muscle gain\n• Maintenance\n• Performance\n• Health improvement",
+            validation: (response: string) => validateNutritionGoal(response)
+          },
+          {
+            key: 'dietary_preferences',
+            question: "🥗 **Any dietary preferences or restrictions?**\n• Vegetarian\n• Vegan\n• Gluten-free\n• Dairy-free\n• None",
+            validation: (response: string) => validateDietaryPreferences(response)
+          },
+          {
+            key: 'meal_focus',
+            question: "🍽️ **What would you like to focus on?**\n• Meal planning\n• Macro tracking\n• Recipe suggestions\n• Supplement advice\n• General nutrition tips",
+            validation: (response: string) => validateMealFocus(response)
+          }
+        ]
+      },
+      
+      progress_tracking: {
+        firstStep: 'tracking_focus',
+        steps: [
+          {
+            key: 'tracking_focus',
+            question: "📊 **What would you like to track?**\n• Workout progress\n• Weight changes\n• Body measurements\n• Strength gains\n• Endurance improvements\n• All of the above",
+            validation: (response: string) => validateTrackingFocus(response)
+          },
+          {
+            key: 'timeframe',
+            question: "⏱️ **What timeframe?**\n• Last week\n• Last month\n• Last 3 months\n• Last 6 months\n• All time",
+            validation: (response: string) => validateTimeframe(response)
+          }
+        ]
+      },
+      
+      recovery_planning: {
+        firstStep: 'recovery_type',
+        steps: [
+          {
+            key: 'recovery_type',
+            question: "🛌 **What type of recovery do you need?**\n• Active recovery (light exercise)\n• Rest day (complete rest)\n• Mobility work\n• Stretching routine\n• Recovery nutrition",
+            validation: (response: string) => validateRecoveryType(response)
+          },
+          {
+            key: 'recovery_duration',
+            question: "⏱️ **How long should the recovery session be?**\n• Quick (15-20 minutes)\n• Standard (30-45 minutes)\n• Extended (60+ minutes)",
+            validation: (response: string) => validateDuration(response)
+          }
+        ]
+      },
+      
+      analytics_request: {
+        firstStep: 'analytics_type',
+        steps: [
+          {
+            key: 'analytics_type',
+            question: "📈 **What type of analytics would you like?**\n• Workout performance\n• Progress trends\n• Strength analysis\n• Consistency tracking\n• Goal progress\n• Comprehensive report",
+            validation: (response: string) => validateAnalyticsType(response)
+          },
+          {
+            key: 'timeframe',
+            question: "⏱️ **What timeframe for the analysis?**\n• Last week\n• Last month\n• Last 3 months\n• Last 6 months\n• All time",
+            validation: (response: string) => validateTimeframe(response)
+          }
+        ]
+      },
+      
+      personal_records: {
+        firstStep: 'pr_focus',
+        steps: [
+          {
+            key: 'pr_focus',
+            question: "🏆 **What type of personal records?**\n• All PRs\n• Strength PRs (max weight)\n• Endurance PRs (reps/time)\n• Specific exercise\n• Recent PRs only",
+            validation: (response: string) => validatePRFocus(response)
+          }
+        ]
+      },
+      
+      exercise_education: {
+        firstStep: 'exercise_name',
+        steps: [
+          {
+            key: 'exercise_name',
+            question: "💪 **Which exercise would you like to learn about?**\n• Squat\n• Bench Press\n• Deadlift\n• Pull-up\n• Push-up\n• Or tell me the specific exercise",
+            validation: (response: string) => validateExerciseName(response)
+          },
+          {
+            key: 'education_focus',
+            question: "📚 **What would you like to learn?**\n• Proper form\n• Benefits\n• Common mistakes\n• Progression tips\n• All of the above",
+            validation: (response: string) => validateEducationFocus(response)
+          }
+        ]
+      }
+    };
+    
+    return configs[functionType] || null;
+  };
+
+  const handleConversationResponse = async (message: string): Promise<string> => {
+    const { functionType, step, totalSteps, context } = conversationState;
+    const flowConfig = getFlowConfig(functionType);
+    
+    if (!flowConfig || step > flowConfig.steps.length) {
+      // Reset conversation state
+      setConversationState({
+        isWaitingForResponse: false,
+        waitingFor: '',
+        context: {},
+        functionType: '',
+        step: 0,
+        totalSteps: 0
+      });
+      return null;
+    }
+    
+    const currentStep = flowConfig.steps[step - 1];
+    const validation = currentStep.validation(message);
+    
+    if (!validation.isValid) {
+      return `❌ **Invalid input.** ${validation.error}\n\n${currentStep.question}`;
+    }
+    
+    // Store the response
+    const updatedContext = {
+      ...context,
+      responses: {
+        ...context.responses,
+        [currentStep.key]: validation.value
+      }
+    };
+    
+    // Check if this is the last step
+    if (step === totalSteps) {
+      // Complete the conversation flow
+      setConversationState({
+        isWaitingForResponse: false,
+        waitingFor: '',
+        context: {},
+        functionType: '',
+        step: 0,
+        totalSteps: 0
+      });
+      
+      return await executeFunction(functionType, updatedContext);
+    } else {
+      // Move to next step
+      const nextStep = flowConfig.steps[step];
+      setConversationState({
+        ...conversationState,
+        waitingFor: nextStep.key,
+        context: updatedContext,
+        step: step + 1
+      });
+      
+      return nextStep.question;
+    }
+  };
+
+  const executeFunction = async (functionType: string, context: any): Promise<string> => {
+    const responses = context.responses;
+    
+    switch (functionType) {
+      case 'workout_scheduling':
+        const schedulingRequest = `${responses.workout_type} workout for ${responses.date} at ${responses.time}`;
+        return await handleCompleteWorkoutScheduling(schedulingRequest);
+        
+      case 'goal_creation':
+        return await handleGoalCreationFromFlow(responses);
+        
+      case 'workout_creation':
+        return await handleWorkoutCreationFromFlow(responses);
+        
+      case 'nutrition_planning':
+        return await handleNutritionPlanningFromFlow(responses);
+        
+      case 'progress_tracking':
+        return await handleProgressTrackingFromFlow(responses);
+        
+      case 'recovery_planning':
+        return await handleRecoveryPlanningFromFlow(responses);
+        
+      case 'analytics_request':
+        return await handleAnalyticsRequestFromFlow(responses);
+        
+      case 'personal_records':
+        return await handlePersonalRecordsFromFlow(responses);
+        
+      case 'exercise_education':
+        return await handleExerciseEducationFromFlow(responses);
+        
+      default:
+        return "I'm sorry, I encountered an error processing your request. Please try again.";
+    }
+  };
+
+  // Validation functions
+  const validateDate = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    
+    if (lowerResponse.includes('today')) {
+      return { isValid: true, value: new Date().toISOString().split('T')[0] };
+    } else if (lowerResponse.includes('tomorrow')) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return { isValid: true, value: tomorrow.toISOString().split('T')[0] };
+    } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].some(day => lowerResponse.includes(day))) {
+      return { isValid: true, value: response };
+    } else if (/\d{1,2}\/\d{1,2}/.test(response) || /\d{1,2}-\d{1,2}/.test(response)) {
+      return { isValid: true, value: response };
+    }
+    
+    return { isValid: false, error: "Please provide a valid date (today, tomorrow, day of week, or date format)" };
+  };
+
+  const validateTime = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    
+    if (lowerResponse.includes('morning')) {
+      return { isValid: true, value: '08:00' };
+    } else if (lowerResponse.includes('afternoon')) {
+      return { isValid: true, value: '14:00' };
+    } else if (lowerResponse.includes('evening')) {
+      return { isValid: true, value: '18:00' };
+    } else if (lowerResponse.includes('night')) {
+      return { isValid: true, value: '20:00' };
+    } else if (/\d{1,2}:\d{2}/.test(response)) {
+      return { isValid: true, value: response };
+    }
+    
+    return { isValid: false, error: "Please provide a valid time (morning, afternoon, evening, or time format like 18:00)" };
+  };
+
+  const validateWorkoutType = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validTypes = ['chest', 'back', 'shoulder', 'leg', 'arm', 'core', 'full body', 'push', 'pull'];
+    
+    for (const type of validTypes) {
+      if (lowerResponse.includes(type)) {
+        return { isValid: true, value: type === 'full body' ? 'full_body' : type + 's' };
+      }
+    }
+    
+    return { isValid: true, value: 'recommended' }; // Default to recommended
+  };
+
+  const validateGoalType = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validTypes = ['weight loss', 'muscle gain', 'strength', 'endurance', 'flexibility', 'fitness'];
+    
+    for (const type of validTypes) {
+      if (lowerResponse.includes(type)) {
+        return { isValid: true, value: type };
+      }
+    }
+    
+    return { isValid: false, error: "Please choose a valid goal type" };
+  };
+
+  const validateTargetValue = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    if (response.trim().length > 0) {
+      return { isValid: true, value: response };
+    }
+    return { isValid: false, error: "Please provide a target value" };
+  };
+
+  const validateTimeframe = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validTimeframes = ['1 month', '3 months', '6 months', '1 year', 'week', 'month'];
+    
+    for (const timeframe of validTimeframes) {
+      if (lowerResponse.includes(timeframe)) {
+        return { isValid: true, value: timeframe };
+      }
+    }
+    
+    return { isValid: true, value: response }; // Accept custom timeframes
+  };
+
+  const validateWorkoutFocus = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    return { isValid: true, value: response };
+  };
+
+  const validateDifficulty = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validLevels = ['beginner', 'intermediate', 'advanced'];
+    
+    for (const level of validLevels) {
+      if (lowerResponse.includes(level)) {
+        return { isValid: true, value: level };
+      }
+    }
+    
+    return { isValid: false, error: "Please choose beginner, intermediate, or advanced" };
+  };
+
+  const validateDuration = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    
+    if (lowerResponse.includes('quick')) {
+      return { isValid: true, value: '30' };
+    } else if (lowerResponse.includes('standard')) {
+      return { isValid: true, value: '60' };
+    } else if (lowerResponse.includes('extended')) {
+      return { isValid: true, value: '90' };
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validateNutritionGoal = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validGoals = ['weight loss', 'muscle gain', 'maintenance', 'performance', 'health'];
+    
+    for (const goal of validGoals) {
+      if (lowerResponse.includes(goal)) {
+        return { isValid: true, value: goal };
+      }
+    }
+    
+    return { isValid: false, error: "Please choose a valid nutrition goal" };
+  };
+
+  const validateDietaryPreferences = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    return { isValid: true, value: response };
+  };
+
+  const validateMealFocus = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validFocuses = ['meal planning', 'macro tracking', 'recipe', 'supplement', 'nutrition'];
+    
+    for (const focus of validFocuses) {
+      if (lowerResponse.includes(focus)) {
+        return { isValid: true, value: focus };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validateTrackingFocus = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validFocuses = ['workout', 'weight', 'measurement', 'strength', 'endurance', 'all'];
+    
+    for (const focus of validFocuses) {
+      if (lowerResponse.includes(focus)) {
+        return { isValid: true, value: focus };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validateRecoveryType = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validTypes = ['active recovery', 'rest day', 'mobility', 'stretching', 'recovery nutrition'];
+    
+    for (const type of validTypes) {
+      if (lowerResponse.includes(type)) {
+        return { isValid: true, value: type };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validateAnalyticsType = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validTypes = ['workout performance', 'progress trends', 'strength analysis', 'consistency', 'goal progress', 'comprehensive'];
+    
+    for (const type of validTypes) {
+      if (lowerResponse.includes(type)) {
+        return { isValid: true, value: type };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validatePRFocus = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validFocuses = ['all prs', 'strength prs', 'endurance prs', 'specific exercise', 'recent prs'];
+    
+    for (const focus of validFocuses) {
+      if (lowerResponse.includes(focus)) {
+        return { isValid: true, value: focus };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  const validateExerciseName = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    return { isValid: true, value: response };
+  };
+
+  const validateEducationFocus = (response: string): { isValid: boolean; value?: string; error?: string } => {
+    const lowerResponse = response.toLowerCase();
+    const validFocuses = ['proper form', 'benefits', 'common mistakes', 'progression tips', 'all'];
+    
+    for (const focus of validFocuses) {
+      if (lowerResponse.includes(focus)) {
+        return { isValid: true, value: focus };
+      }
+    }
+    
+    return { isValid: true, value: response };
+  };
+
+  // Function execution handlers
+  const handleGoalCreationFromFlow = async (responses: any): Promise<string> => {
+    try {
+      const goalData = {
+        type: responses.goal_type,
+        target: responses.target_value,
+        timeframe: responses.timeframe,
+        currentValue: '0', // Will be set by user
+        unit: 'units', // Will be determined based on goal type
+        createdAt: new Date().toISOString()
+      };
+      
+      // Add goal to store
+      const { addGoal } = useAiStore.getState();
+      addGoal(goalData);
+      
+      return `🎯 **Goal Created Successfully!**\n\n` +
+             `**Type:** ${responses.goal_type}\n` +
+             `**Target:** ${responses.target_value}\n` +
+             `**Timeframe:** ${responses.timeframe}\n\n` +
+             `✅ Your goal has been added to your profile. I'll help you track your progress!`;
+    } catch (error) {
+      return "I encountered an error creating your goal. Please try again.";
+    }
+  };
+
+  const handleWorkoutCreationFromFlow = async (responses: any): Promise<string> => {
+    try {
+      const workoutRequest = `${responses.workout_focus} workout for ${responses.difficulty} level, ${responses.duration} minutes`;
+      const customWorkout = await createWorkoutFromRequest(workoutRequest);
+      
+      if (customWorkout) {
+        return `💪 **Workout Created Successfully!**\n\n` +
+               `**Name:** ${customWorkout.name}\n` +
+               `**Focus:** ${responses.workout_focus}\n` +
+               `**Difficulty:** ${responses.difficulty}\n` +
+               `**Duration:** ${responses.duration} minutes\n\n` +
+               `✅ Your workout has been created and added to your library!`;
+      }
+      
+      return "I encountered an error creating your workout. Please try again.";
+    } catch (error) {
+      return "I encountered an error creating your workout. Please try again.";
+    }
+  };
+
+  const handleNutritionPlanningFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `🍎 **Nutrition Plan Created!**\n\n` +
+             `**Goal:** ${responses.nutrition_goal}\n` +
+             `**Preferences:** ${responses.dietary_preferences}\n` +
+             `**Focus:** ${responses.meal_focus}\n\n` +
+             `I'll provide personalized nutrition guidance based on your preferences. Check the nutrition tab for detailed recommendations!`;
+    } catch (error) {
+      return "I encountered an error creating your nutrition plan. Please try again.";
+    }
+  };
+
+  const handleProgressTrackingFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `📊 **Progress Tracking Setup!**\n\n` +
+             `**Focus:** ${responses.tracking_focus}\n` +
+             `**Timeframe:** ${responses.timeframe}\n\n` +
+             `I'll track your progress and provide regular updates. Check the analytics tab for detailed insights!`;
+    } catch (error) {
+      return "I encountered an error setting up progress tracking. Please try again.";
+    }
+  };
+
+  const handleRecoveryPlanningFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `🛌 **Recovery Plan Created!**\n\n` +
+             `**Type:** ${responses.recovery_type}\n` +
+             `**Duration:** ${responses.recovery_duration} minutes\n\n` +
+             `I'll help you optimize your recovery. Check the recovery recommendations for personalized advice!`;
+    } catch (error) {
+      return "I encountered an error creating your recovery plan. Please try again.";
+    }
+  };
+
+  const handleAnalyticsRequestFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `📈 **Analytics Report Generated!**\n\n` +
+             `**Type:** ${responses.analytics_type}\n` +
+             `**Timeframe:** ${responses.timeframe}\n\n` +
+             `Check the analytics tab for your detailed report and insights!`;
+    } catch (error) {
+      return "I encountered an error generating your analytics report. Please try again.";
+    }
+  };
+
+  const handlePersonalRecordsFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `🏆 **Personal Records Report!**\n\n` +
+             `**Focus:** ${responses.pr_focus}\n\n` +
+             `Check your personal records and achievements in the progress tab!`;
+    } catch (error) {
+      return "I encountered an error retrieving your personal records. Please try again.";
+    }
+  };
+
+  const handleExerciseEducationFromFlow = async (responses: any): Promise<string> => {
+    try {
+      return `📚 **Exercise Education!**\n\n` +
+             `**Exercise:** ${responses.exercise_name}\n` +
+             `**Focus:** ${responses.education_focus}\n\n` +
+             `I'll provide detailed information about ${responses.exercise_name}. Check the exercise library for comprehensive guides!`;
+    } catch (error) {
+      return "I encountered an error providing exercise education. Please try again.";
+    }
+  };
+
   const handleAdvancedPersonalizationRequest = async (message: string): Promise<string> => {
     const lowerMessage = message.toLowerCase();
     
