@@ -66,9 +66,29 @@ export default function HealthScreen() {
     manualSyncSwimming,
     setIsAppleWatchConnected
   } = useHealthStore();
+  
+  // Safe access to weight logs
+  const safeWeightLogs = (() => {
+    try {
+      return weightLogs || [];
+    } catch (error) {
+      console.warn('Error accessing weight logs:', error);
+      return [];
+    }
+  })();
   const { progressPhotos } = usePhotoStore();
   const { colors } = useTheme();
   
+  // Safe access to progress photos
+  const safeProgressPhotos = (() => {
+    try {
+      return progressPhotos || [];
+    } catch (error) {
+      console.warn('Error accessing progress photos:', error);
+      return [];
+    }
+  })();
+
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [isSwimmingSyncLoading, setIsSwimmingSyncLoading] = useState(false);
 
@@ -148,28 +168,93 @@ export default function HealthScreen() {
   
 
   
-  // Calculate total workouts
-  const totalWorkouts = workoutLogs.length;
+  // Calculate total workouts with safe error handling
+  const totalWorkouts = (() => {
+    try {
+      return workoutLogs ? workoutLogs.length : 0;
+    } catch (error) {
+      console.warn('Error calculating total workouts:', error);
+      return 0;
+    }
+  })();
   
-  // Calculate active days (unique days with workouts)
-  const activeDays = new Set(
-    workoutLogs.map(log => new Date(log.date).toDateString())
-  ).size;
+  // Calculate active days (unique days with workouts) with safe error handling
+  const activeDays = (() => {
+    try {
+      if (!workoutLogs) return 0;
+      return new Set(
+        workoutLogs.map(log => new Date(log.date).toDateString())
+      ).size;
+    } catch (error) {
+      console.warn('Error calculating active days:', error);
+      return 0;
+    }
+  })();
   
-  // Calculate total workout time
-  const totalWorkoutTime = workoutLogs.reduce(
-    (total, log) => total + log.duration,
-    0
-  );
+  // Calculate total workout time with safe error handling
+  const totalWorkoutTime = (() => {
+    try {
+      if (!workoutLogs) return 0;
+      return workoutLogs.reduce(
+        (total, log) => total + (log.duration || 0),
+        0
+      );
+    } catch (error) {
+      console.warn('Error calculating total workout time:', error);
+      return 0;
+    }
+  })();
   
-  // Get recent activities
-  const recentActivities = useHealthStore.getState().getRecentActivityLogs(3);
+  // Get recent activities with safe error handling
+  const recentActivities = (() => {
+    try {
+      const healthStore = useHealthStore.getState();
+      if (healthStore && typeof healthStore.getRecentActivityLogs === 'function') {
+        return healthStore.getRecentActivityLogs(3);
+      }
+      return [];
+    } catch (error) {
+      console.warn('Error getting recent activities:', error);
+      return [];
+    }
+  })();
   
-  // Check for connected devices
-  const hasConnectedDevices = connectedDevices.some(device => device.connected);
-  const appleWatch = getConnectedDeviceByType("appleWatch");
-  const fitbit = getConnectedDeviceByType("fitbit");
-  const garmin = getConnectedDeviceByType("garmin");
+  // Check for connected devices with safe error handling
+  const hasConnectedDevices = (() => {
+    try {
+      return connectedDevices && connectedDevices.some(device => device.connected);
+    } catch (error) {
+      console.warn('Error checking connected devices:', error);
+      return false;
+    }
+  })();
+  
+  const appleWatch = (() => {
+    try {
+      return getConnectedDeviceByType ? getConnectedDeviceByType("appleWatch") : null;
+    } catch (error) {
+      console.warn('Error getting Apple Watch device:', error);
+      return null;
+    }
+  })();
+  
+  const fitbit = (() => {
+    try {
+      return getConnectedDeviceByType ? getConnectedDeviceByType("fitbit") : null;
+    } catch (error) {
+      console.warn('Error getting Fitbit device:', error);
+      return null;
+    }
+  })();
+  
+  const garmin = (() => {
+    try {
+      return getConnectedDeviceByType ? getConnectedDeviceByType("garmin") : null;
+    } catch (error) {
+      console.warn('Error getting Garmin device:', error);
+      return null;
+    }
+  })();
   
   const handleSyncAllDevices = async () => {
     if (!hasConnectedDevices && !healthKitAuthorized) {
@@ -709,8 +794,8 @@ export default function HealthScreen() {
               <View>
                 <Text style={[styles.toolTitle, { color: colors.text }]}>Progress Photos</Text>
                 <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                  {progressPhotos.length > 0 
-                    ? `${progressPhotos.length} photo${progressPhotos.length > 1 ? 's' : ''} saved`
+                  {safeProgressPhotos.length > 0 
+                    ? `${safeProgressPhotos.length} photo${safeProgressPhotos.length > 1 ? 's' : ''} saved`
                     : "Track your physical changes over time"
                   }
                 </Text>
@@ -755,8 +840,8 @@ export default function HealthScreen() {
               <View>
                 <Text style={[styles.toolTitle, { color: colors.text }]}>Weight Tracking</Text>
                 <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                  {weightLogs.length > 0 
-                    ? `${weightLogs.length} weight log${weightLogs.length > 1 ? 's' : ''} recorded`
+                  {safeWeightLogs.length > 0 
+                    ? `${safeWeightLogs.length} weight log${safeWeightLogs.length > 1 ? 's' : ''} recorded`
                     : "Start tracking your weight progress"
                   }
                 </Text>
