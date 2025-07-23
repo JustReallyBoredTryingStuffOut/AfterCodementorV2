@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
 import { Home, Dumbbell, Calendar, Apple, User, ActivitySquare, Map } from "lucide-react-native";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export default function TabLayout() {
   const { colors } = useTheme();

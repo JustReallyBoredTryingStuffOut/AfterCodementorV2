@@ -9,6 +9,7 @@ import { useWaterStore } from '@/store/waterStore';
 import { useMealStore } from '@/store/mealStore';
 import MacroProgress from '@/components/MacroProgress';
 import MacroInfoModal from '@/components/MacroInfoModal';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import * as Notifications from "expo-notifications";
 
 export default function NutritionScreen() {
@@ -19,36 +20,41 @@ export default function NutritionScreen() {
   const { getWaterIntakeByDate, setTarget } = useWaterStore();
   const { meals } = useMealStore();
   
-  // Get today's water intake
-  const todayWaterIntake = getWaterIntakeByDate(new Date());
+  // Get today's water intake with safe access
+  const todayWaterIntake = getWaterIntakeByDate ? getWaterIntakeByDate(new Date()) : null;
   const waterIntake = todayWaterIntake?.amount || 0;
   const waterGoal = todayWaterIntake?.goal || 2000; // Default 2L
   
-  // Get today's meals
-  const todayMeals = meals.filter(meal => {
-    const mealDate = new Date(meal.date);
-    const today = new Date();
-    return mealDate.toDateString() === today.toDateString();
-  });
+  // Get today's meals with safe access
+  const todayMeals = meals ? meals.filter(meal => {
+    try {
+      const mealDate = new Date(meal.date);
+      const today = new Date();
+      return mealDate.toDateString() === today.toDateString();
+    } catch (error) {
+      console.warn('Error filtering meal date:', error);
+      return false;
+    }
+  }) : [];
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [infoModalVisible, setInfoModalVisible] = useState(false);
 
   // Format date as ISO string (YYYY-MM-DD)
   const dateString = selectedDate.toISOString().split('T')[0];
   
-  // Calculate today's macros
-  const todayMacros = calculateDailyMacros(dateString) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  // Calculate today's macros with safe access
+  const todayMacros = calculateDailyMacros ? calculateDailyMacros(dateString) : { calories: 0, protein: 0, carbs: 0, fat: 0 };
   
   // Calculate percentages with safety checks
-  const caloriePercentage = Math.min(100, ((todayMacros.calories || 0) / (macroGoals?.calories || 1)) * 100);
-  const proteinPercentage = Math.min(100, ((todayMacros.protein || 0) / (macroGoals?.protein || 1)) * 100);
-  const carbsPercentage = Math.min(100, ((todayMacros.carbs || 0) / (macroGoals?.carbs || 1)) * 100);
-  const fatPercentage = Math.min(100, ((todayMacros.fat || 0) / (macroGoals?.fat || 1)) * 100);
+  const caloriePercentage = Math.min(100, ((todayMacros?.calories || 0) / (macroGoals?.calories || 1)) * 100);
+  const proteinPercentage = Math.min(100, ((todayMacros?.protein || 0) / (macroGoals?.protein || 1)) * 100);
+  const carbsPercentage = Math.min(100, ((todayMacros?.carbs || 0) / (macroGoals?.carbs || 1)) * 100);
+  const fatPercentage = Math.min(100, ((todayMacros?.fat || 0) / (macroGoals?.fat || 1)) * 100);
   
-  // Get nutrition achievements
-  const nutritionAchievements = achievements.filter(a => 
+  // Get nutrition achievements with safe access
+  const nutritionAchievements = achievements ? achievements.filter(a => 
     a.category === "nutrition" && !a.completed
-  );
+  ) : [];
   
   // Find specific achievements
   const proteinGoalAchievement = nutritionAchievements.find(a => a.id === "nutrition-protein-goal");
@@ -149,273 +155,283 @@ export default function NutritionScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen 
-        options={{
-          title: 'Nutrition',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={handleGoBack} 
-              style={styles.backButton}
-              accessibilityLabel="Go back"
-              accessibilityHint="Returns to the previous screen"
-            >
-              <ArrowLeft size={24} color={colors.text} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity onPress={handleViewHistory} style={styles.historyButton}>
-              <Calendar size={24} color={colors.text} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Daily Nutrition</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
-        </View>
+    <ErrorBoundary>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen 
+          options={{
+            title: 'Nutrition',
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={handleGoBack} 
+                style={styles.backButton}
+                accessibilityLabel="Go back"
+                accessibilityHint="Returns to the previous screen"
+              >
+                <ArrowLeft size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
+            headerRight: () => (
+              <TouchableOpacity onPress={handleViewHistory} style={styles.historyButton}>
+                <Calendar size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
+          }}
+        />
         
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-          <View style={styles.quickActionsContainer}>
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: colors.card }]}
-              onPress={() => router.push('/log-food?meal=breakfast')}
-            >
-              <Sun size={20} color={colors.primary} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Breakfast</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: colors.card }]}
-              onPress={() => router.push('/log-food?meal=lunch')}
-            >
-              <UtensilsCrossed size={20} color={colors.primary} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Lunch</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: colors.card }]}
-              onPress={() => router.push('/log-food?meal=dinner')}
-            >
-              <Moon size={20} color={colors.primary} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Dinner</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: colors.card }]}
-              onPress={() => router.push('/log-food?meal=snack')}
-            >
-              <Coffee size={20} color={colors.primary} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Snack</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: colors.success }]}
-              onPress={testWaterNotification}
-            >
-              <Bell size={20} color={colors.white} />
-              <Text style={[styles.quickActionText, { color: colors.white }]}>Test Water</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Water Tracking */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Water Intake</Text>
-          <View style={[styles.waterCard, { backgroundColor: colors.card }]}>
-            <View style={styles.waterHeader}>
-              <Droplets size={24} color={colors.primary} />
-              <Text style={[styles.waterTitle, { color: colors.text }]}>Daily Hydration</Text>
-            </View>
-            <View style={styles.waterProgress}>
-              <Text style={[styles.waterAmount, { color: colors.text }]}>
-                {waterIntake} / {waterGoal} ml
-              </Text>
-              <View style={[styles.waterProgressBar, { backgroundColor: colors.border }]}>
-                <View 
-                  style={[
-                    styles.waterProgressFill, 
-                    { 
-                      width: `${Math.min(100, (waterIntake / waterGoal) * 100)}%`,
-                      backgroundColor: colors.primary 
-                    }
-                  ]} 
-                />
-              </View>
-            </View>
-            <TouchableOpacity 
-              style={[styles.addWaterButton, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/water-intake')}
-            >
-              <Text style={[styles.addWaterButtonText, { color: colors.white }]}>Add Water</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Today's Meals */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Meals</Text>
-          {todayMeals.length > 0 ? (
-            <View style={styles.mealsContainer}>
-              {todayMeals.map((meal, index) => (
-                <View key={meal.id} style={[styles.mealCard, { backgroundColor: colors.card }]}>
-                  <View style={styles.mealHeader}>
-                    <Text style={[styles.mealName, { color: colors.text }]}>{meal.name}</Text>
-                    <Text style={[styles.mealTime, { color: colors.textSecondary }]}>
-                      {new Date(meal.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </View>
-                  <Text style={[styles.mealCalories, { color: colors.textSecondary }]}>
-                    {meal.calories} kcal
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={[styles.noMealsCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.noMealsText, { color: colors.textSecondary }]}>
-                No meals logged today. Use the quick actions above to log your first meal!
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Nutrition Tips */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Nutrition Tips</Text>
-          <View style={[styles.tipsCard, { backgroundColor: colors.card }]}>
-            <View style={styles.tipsHeader}>
-              <Lightbulb size={20} color={colors.primary} />
-              <Text style={[styles.tipsTitle, { color: colors.text }]}>Today's Tip</Text>
-            </View>
-            <Text style={[styles.tipsText, { color: colors.textSecondary }]}>
-              {getNutritionTip()}
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Daily Nutrition</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </Text>
           </View>
-        </View>
-        
-        <View style={[styles.macroCard, { backgroundColor: colors.card }]}>
-          <View style={styles.macroHeader}>
-            <View style={styles.macroTitleContainer}>
-              <Text style={[styles.macroTitle, { color: colors.white }]}>Macros</Text>
+          
+          {/* Quick Actions */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+            <View style={styles.quickActionsContainer}>
               <TouchableOpacity 
-                onPress={() => setInfoModalVisible(true)}
-                style={styles.infoButton}
-                accessibilityLabel="Nutrition information"
-                accessibilityHint="Opens a modal with information about how nutrition goals are calculated"
+                style={[styles.quickActionButton, { backgroundColor: colors.card }]}
+                onPress={() => router.push('/log-food?meal=breakfast')}
               >
-                <Info size={16} color={colors.primary} />
+                <Sun size={20} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.text }]}>Breakfast</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: colors.card }]}
+                onPress={() => router.push('/log-food?meal=lunch')}
+              >
+                <UtensilsCrossed size={20} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.text }]}>Lunch</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: colors.card }]}
+                onPress={() => router.push('/log-food?meal=dinner')}
+              >
+                <Moon size={20} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.text }]}>Dinner</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: colors.card }]}
+                onPress={() => router.push('/log-food?meal=snack')}
+              >
+                <Coffee size={20} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.text }]}>Snack</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: colors.success }]}
+                onPress={testWaterNotification}
+              >
+                <Bell size={20} color={colors.white} />
+                <Text style={[styles.quickActionText, { color: colors.white }]}>Test Water</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={handleAddFood}>
-              <View style={[styles.addButton, { backgroundColor: colors.primary }]}>
-                <Plus size={16} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>Add Food</Text>
+          </View>
+
+          {/* Water Tracking */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Water Intake</Text>
+            <View style={[styles.waterCard, { backgroundColor: colors.card }]}>
+              <View style={styles.waterHeader}>
+                <Droplets size={24} color={colors.primary} />
+                <Text style={[styles.waterTitle, { color: colors.text }]}>Daily Hydration</Text>
               </View>
-            </TouchableOpacity>
+              <View style={styles.waterProgress}>
+                <Text style={[styles.waterAmount, { color: colors.text }]}>
+                  {waterIntake} / {waterGoal} ml
+                </Text>
+                <View style={[styles.waterProgressBar, { backgroundColor: colors.border }]}>
+                  <View 
+                    style={[
+                      styles.waterProgressFill, 
+                      { 
+                        width: `${Math.min(100, (waterIntake / waterGoal) * 100)}%`,
+                        backgroundColor: colors.primary 
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={[styles.addWaterButton, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/water-intake')}
+              >
+                <Text style={[styles.addWaterButtonText, { color: colors.white }]}>Add Water</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          <View style={styles.macroContent}>
-            <MacroProgress
-              title="Calories"
-              current={todayMacros.calories || 0}
-              goal={macroGoals?.calories || 0}
-              unit="kcal"
-              percentage={caloriePercentage}
-              color={colors.calorieColor}
-            />
-            
-            <MacroProgress
-              title="Protein"
-              current={todayMacros.protein || 0}
-              goal={macroGoals?.protein || 0}
-              unit="g"
-              percentage={proteinPercentage}
-              color={colors.macroProtein}
-              achievementId={proteinGoalAchievement?.id}
-            />
-            
-            <MacroProgress
-              title="Carbs"
-              current={todayMacros.carbs || 0}
-              goal={macroGoals?.carbs || 0}
-              unit="g"
-              percentage={carbsPercentage}
-              color={colors.macroCarbs}
-            />
-            
-            <MacroProgress
-              title="Fat"
-              current={todayMacros.fat || 0}
-              goal={macroGoals?.fat || 0}
-              unit="g"
-              percentage={fatPercentage}
-              color={colors.macroFat}
-            />
+
+          {/* Today's Meals */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Meals</Text>
+            {todayMeals.length > 0 ? (
+              <View style={styles.mealsContainer}>
+                {todayMeals.map((meal, index) => (
+                  <View key={meal.id} style={[styles.mealCard, { backgroundColor: colors.card }]}>
+                    <View style={styles.mealHeader}>
+                      <Text style={[styles.mealName, { color: colors.text }]}>{meal.name}</Text>
+                      <Text style={[styles.mealTime, { color: colors.textSecondary }]}>
+                        {new Date(meal.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    <Text style={[styles.mealCalories, { color: colors.textSecondary }]}>
+                      {meal.calories} kcal
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.noMealsCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.noMealsText, { color: colors.textSecondary }]}>
+                  No meals logged today. Use the quick actions above to log your first meal!
+                </Text>
+              </View>
+            )}
           </View>
-          
-          {gamificationEnabled && (
-            <View style={styles.achievementContainer}>
-              <Text style={[styles.achievementText, { color: colors.white }]}>
-                {getAchievementProgressMessage()}
+
+          {/* Nutrition Tips */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nutrition Tips</Text>
+            <View style={[styles.tipsCard, { backgroundColor: colors.card }]}>
+              <View style={styles.tipsHeader}>
+                <Lightbulb size={20} color={colors.primary} />
+                <Text style={[styles.tipsTitle, { color: colors.text }]}>Today's Tip</Text>
+              </View>
+              <Text style={[styles.tipsText, { color: colors.textSecondary }]}>
+                {getNutritionTip()}
               </Text>
             </View>
-          )}
-        </View>
-        
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Food Analysis</Text>
-            <TouchableOpacity onPress={() => router.push('/food-photos')}>
-              <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
-            </TouchableOpacity>
           </View>
           
-          <TouchableOpacity 
-            style={[styles.analysisCard, { backgroundColor: colors.card }]}
-            onPress={() => router.push('/capture-food')}
-          >
-            <View style={styles.analysisContent}>
-              <UtensilsCrossed size={24} color={colors.primary} />
-              <View style={styles.analysisTextContainer}>
-                <Text style={[styles.analysisTitle, { color: colors.text }]}>Analyze Food with Camera</Text>
-                <Text style={[styles.analysisDescription, { color: colors.textSecondary }]}>
-                  Take a photo of your meal or scan nutrition labels
+          <View style={[styles.macroCard, { backgroundColor: colors.card }]}>
+            <View style={styles.macroHeader}>
+              <View style={styles.macroTitleContainer}>
+                <Text style={[styles.macroTitle, { color: colors.white }]}>Macros</Text>
+                <TouchableOpacity 
+                  onPress={() => setInfoModalVisible(true)}
+                  style={styles.infoButton}
+                  accessibilityLabel="Nutrition information"
+                  accessibilityHint="Opens a modal with information about how nutrition goals are calculated"
+                >
+                  <Info size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={handleAddFood}>
+                <View style={[styles.addButton, { backgroundColor: colors.primary }]}>
+                  <Plus size={16} color="#FFFFFF" />
+                  <Text style={styles.addButtonText}>Add Food</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.macroContent}>
+              <ErrorBoundary>
+                <MacroProgress
+                  title="Calories"
+                  current={todayMacros?.calories || 0}
+                  goal={macroGoals?.calories || 0}
+                  unit="kcal"
+                  percentage={caloriePercentage}
+                  color={colors.calorieColor}
+                />
+              </ErrorBoundary>
+              
+              <ErrorBoundary>
+                <MacroProgress
+                  title="Protein"
+                  current={todayMacros?.protein || 0}
+                  goal={macroGoals?.protein || 0}
+                  unit="g"
+                  percentage={proteinPercentage}
+                  color={colors.macroProtein}
+                  achievementId={proteinGoalAchievement?.id}
+                />
+              </ErrorBoundary>
+              
+              <ErrorBoundary>
+                <MacroProgress
+                  title="Carbs"
+                  current={todayMacros?.carbs || 0}
+                  goal={macroGoals?.carbs || 0}
+                  unit="g"
+                  percentage={carbsPercentage}
+                  color={colors.macroCarbs}
+                />
+              </ErrorBoundary>
+              
+              <ErrorBoundary>
+                <MacroProgress
+                  title="Fat"
+                  current={todayMacros?.fat || 0}
+                  goal={macroGoals?.fat || 0}
+                  unit="g"
+                  percentage={fatPercentage}
+                  color={colors.macroFat}
+                />
+              </ErrorBoundary>
+            </View>
+            
+            {gamificationEnabled && (
+              <View style={styles.achievementContainer}>
+                <Text style={[styles.achievementText, { color: colors.white }]}>
+                  {getAchievementProgressMessage()}
                 </Text>
               </View>
-            </View>
-            <ChevronRight size={20} color={colors.textLight} />
-          </TouchableOpacity>
+            )}
+          </View>
           
-          <TouchableOpacity 
-            style={[styles.analysisCard, { backgroundColor: colors.card }]}
-            onPress={handleViewNutritionInsights}
-          >
-            <View style={styles.analysisContent}>
-              <BarChart size={24} color={colors.primary} />
-              <View style={styles.analysisTextContainer}>
-                <Text style={[styles.analysisTitle, { color: colors.text }]}>Nutrition Insights</Text>
-                <Text style={[styles.analysisDescription, { color: colors.textSecondary }]}>
-                  View trends and patterns in your nutrition data
-                </Text>
-              </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Food Analysis</Text>
+              <TouchableOpacity onPress={() => router.push('/food-photos')}>
+                <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+              </TouchableOpacity>
             </View>
-            <ChevronRight size={20} color={colors.textLight} />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-      
-      <MacroInfoModal 
-        visible={infoModalVisible}
-        onClose={() => setInfoModalVisible(false)}
-      />
-    </View>
+            
+            <TouchableOpacity 
+              style={[styles.analysisCard, { backgroundColor: colors.card }]}
+              onPress={() => router.push('/capture-food')}
+            >
+              <View style={styles.analysisContent}>
+                <UtensilsCrossed size={24} color={colors.primary} />
+                <View style={styles.analysisTextContainer}>
+                  <Text style={[styles.analysisTitle, { color: colors.text }]}>Analyze Food with Camera</Text>
+                  <Text style={[styles.analysisDescription, { color: colors.textSecondary }]}>
+                    Take a photo of your meal or scan nutrition labels
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={colors.textLight} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.analysisCard, { backgroundColor: colors.card }]}
+              onPress={handleViewNutritionInsights}
+            >
+              <View style={styles.analysisContent}>
+                <BarChart size={24} color={colors.primary} />
+                <View style={styles.analysisTextContainer}>
+                  <Text style={[styles.analysisTitle, { color: colors.text }]}>Nutrition Insights</Text>
+                  <Text style={[styles.analysisDescription, { color: colors.textSecondary }]}>
+                    View trends and patterns in your nutrition data
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={colors.textLight} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+        
+        <MacroInfoModal 
+          visible={infoModalVisible}
+          onClose={() => setInfoModalVisible(false)}
+        />
+      </View>
+    </ErrorBoundary>
   );
 }
 

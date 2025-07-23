@@ -31,10 +31,22 @@ import WeightTracker from "@/components/WeightTracker";
 import WaterTracker from "@/components/WaterTracker";
 import ActivityMap from "@/components/ActivityMap";
 import Button from "@/components/Button";
-import HealthKitService from '../../src/services/HealthKitService';
-import HealthKit from "@/src/NativeModules/HealthKit";
-import AppleWatchIntegration from '../../components/AppleWatchIntegration';
-import AppleWatchService from '../../src/NativeModules/AppleWatch';
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+// Safe imports with error handling
+let HealthKit: any = null;
+let HealthKitService: any = null;
+let AppleWatchService: any = null;
+
+try {
+  if (Platform.OS === 'ios') {
+    HealthKit = require("@/src/NativeModules/HealthKit").default;
+    HealthKitService = require('../../src/services/HealthKitService').default;
+    AppleWatchService = require('../../src/NativeModules/AppleWatch').default;
+  }
+} catch (error) {
+  console.warn('Native modules not available:', error);
+}
 
 export default function HealthScreen() {
   const router = useRouter();
@@ -65,7 +77,7 @@ export default function HealthScreen() {
   
   // Initialize HealthKit and start swimming sync
   useEffect(() => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'ios' && HealthKit) {
       const initializeHealthKit = async () => {
         try {
           // Check if HealthKit is available
@@ -92,6 +104,8 @@ export default function HealthScreen() {
           }
         } catch (error) {
           console.error("Error initializing HealthKit:", error);
+          setHealthKitAvailable(false);
+          setHealthKitAuthorized(false);
         }
       };
       
@@ -107,16 +121,25 @@ export default function HealthScreen() {
   useEffect(() => {
     let subscription;
     const checkAppleWatch = async () => {
-      if (Platform.OS === 'ios') {
-        const reachable = await AppleWatchService.isAppleWatchReachable();
-        setIsAppleWatchConnected(!!reachable);
+      if (Platform.OS === 'ios' && AppleWatchService) {
+        try {
+          const reachable = await AppleWatchService.isAppleWatchReachable();
+          setIsAppleWatchConnected(!!reachable);
+        } catch (error) {
+          console.warn('Apple Watch service not available:', error);
+          setIsAppleWatchConnected(false);
+        }
       }
     };
     checkAppleWatch();
-    if (Platform.OS === 'ios' && AppleWatchService.eventEmitter) {
-      subscription = AppleWatchService.eventEmitter.addListener('watchStatusChanged', (data) => {
-        setIsAppleWatchConnected(!!data.isReachable);
-      });
+    if (Platform.OS === 'ios' && AppleWatchService?.eventEmitter) {
+      try {
+        subscription = AppleWatchService.eventEmitter.addListener('watchStatusChanged', (data) => {
+          setIsAppleWatchConnected(!!data.isReachable);
+        });
+      } catch (error) {
+        console.warn('Apple Watch event emitter not available:', error);
+      }
     }
     return () => {
       if (subscription) subscription.remove();
@@ -159,7 +182,7 @@ export default function HealthScreen() {
           { 
             text: "Enable Apple Health", 
             onPress: async () => {
-              if (Platform.OS === 'ios') {
+              if (Platform.OS === 'ios' && HealthKit) {
                 try {
                   const authResult = await HealthKit.requestAuthorization([
                     'steps', 
@@ -193,6 +216,12 @@ export default function HealthScreen() {
                     [{ text: "OK" }]
                   );
                 }
+              } else {
+                Alert.alert(
+                  "Not Available",
+                  "Apple Health is not available on this device.",
+                  [{ text: "OK" }]
+                );
               }
             }
           }
@@ -205,35 +234,39 @@ export default function HealthScreen() {
     
     try {
       // Sync with Apple Health if authorized
-      if (Platform.OS === 'ios' && healthKitAuthorized) {
-        // Get today's date at midnight
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        // Get 7 days ago
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
-        // Get step data
-        const stepsResult = await HealthKit.getStepCount(
-          sevenDaysAgo.toISOString(),
-          new Date().toISOString()
-        );
-        
-        if (stepsResult.success) {
-          // Log success
-      
-        }
-        
-        // Get workout data
-        const workouts = await HealthKit.getWorkouts(
-          sevenDaysAgo.toISOString(),
-          new Date().toISOString()
-        );
-        
-        if (workouts && workouts.length > 0) {
-          // Log success
-      
+      if (Platform.OS === 'ios' && healthKitAuthorized && HealthKit) {
+        try {
+          // Get today's date at midnight
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Get 7 days ago
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          
+          // Get step data
+          const stepsResult = await HealthKit.getStepCount(
+            sevenDaysAgo.toISOString(),
+            new Date().toISOString()
+          );
+          
+          if (stepsResult.success) {
+            // Log success
+            console.log('Steps synced successfully');
+          }
+          
+          // Get workout data
+          const workouts = await HealthKit.getWorkouts(
+            sevenDaysAgo.toISOString(),
+            new Date().toISOString()
+          );
+          
+          if (workouts && workouts.length > 0) {
+            // Log success
+            console.log('Workouts synced successfully');
+          }
+        } catch (error) {
+          console.error('Error syncing with HealthKit:', error);
         }
       }
       
@@ -264,12 +297,20 @@ export default function HealthScreen() {
     setIsSwimmingSyncLoading(true);
     
     try {
-      await manualSyncSwimming();
-      Alert.alert(
-        "Swimming Sync Complete",
-        "Swimming activities have been synced from Apple Health.",
-        [{ text: "OK" }]
-      );
+      if (manualSyncSwimming) {
+        await manualSyncSwimming();
+        Alert.alert(
+          "Swimming Sync Complete",
+          "Swimming activities have been synced from Apple Health.",
+          [{ text: "OK" }]
+        );
+      } else {
+        Alert.alert(
+          "Not Available",
+          "Swimming sync is not available on this device.",
+          [{ text: "OK" }]
+        );
+      }
     } catch (error) {
       console.error("Error syncing swimming:", error);
       Alert.alert(
@@ -285,476 +326,509 @@ export default function HealthScreen() {
   const handleWorkoutControl = (type, data) => {
     console.log('Workout control received:', type, data);
     // Handle workout controls from Apple Watch
-    switch (type) {
-      case 'startWorkout':
-        Alert.alert('Workout Started', 'Workout started from Apple Watch');
-        break;
-      case 'pauseWorkout':
-        Alert.alert('Workout Paused', 'Workout paused from Apple Watch');
-        break;
-      case 'skipExercise':
-        Alert.alert('Exercise Skipped', 'Exercise skipped from Apple Watch');
-        break;
-      case 'completeSet':
-        Alert.alert('Set Completed', 'Set marked as complete from Apple Watch');
-        break;
-      case 'emergencyStopWorkout':
-        Alert.alert('Workout Stopped', 'Workout stopped from Apple Watch');
-        break;
+    try {
+      switch (type) {
+        case 'startWorkout':
+          Alert.alert('Workout Started', 'Workout started from Apple Watch');
+          break;
+        case 'pauseWorkout':
+          Alert.alert('Workout Paused', 'Workout paused from Apple Watch');
+          break;
+        case 'skipExercise':
+          Alert.alert('Exercise Skipped', 'Exercise skipped from Apple Watch');
+          break;
+        case 'completeSet':
+          Alert.alert('Set Completed', 'Set marked as complete from Apple Watch');
+          break;
+        case 'emergencyStopWorkout':
+          Alert.alert('Workout Stopped', 'Workout stopped from Apple Watch');
+          break;
+        default:
+          console.log('Unknown workout control type:', type);
+      }
+    } catch (error) {
+      console.error('Error handling workout control:', error);
     }
   };
 
   const handleQuickLog = (type, data) => {
     console.log('Quick log received:', type, data);
     // Handle quick logging from Apple Watch
-    switch (type) {
-      case 'logWater':
-        if (data.amount) {
-          Alert.alert('Water Logged', `Logged ${data.amount} from Apple Watch`);
-        }
-        break;
-      case 'logWeight':
-        if (data.weight) {
-          Alert.alert('Weight Logged', `Logged ${data.weight}kg from Apple Watch`);
-        }
-        break;
-      case 'logMood':
-        if (data.mood && data.description) {
-          Alert.alert('Mood Logged', `Logged mood: ${data.description} from Apple Watch`);
-        }
-        break;
+    try {
+      switch (type) {
+        case 'logWater':
+          if (data?.amount) {
+            Alert.alert('Water Logged', `Logged ${data.amount} from Apple Watch`);
+          }
+          break;
+        case 'logWeight':
+          if (data?.weight) {
+            Alert.alert('Weight Logged', `Logged ${data.weight}kg from Apple Watch`);
+          }
+          break;
+        case 'logMood':
+          if (data?.mood && data?.description) {
+            Alert.alert('Mood Logged', `Logged mood: ${data.description} from Apple Watch`);
+          }
+          break;
+        default:
+          console.log('Unknown quick log type:', type);
+      }
+    } catch (error) {
+      console.error('Error handling quick log:', error);
     }
   };
 
   const handleNotificationReceived = (type, data) => {
     console.log('Notification received:', type, data);
     // Handle notifications from Apple Watch
-    Alert.alert('Apple Watch Notification', `Received ${type} notification`);
+    try {
+      Alert.alert('Apple Watch Notification', `Received ${type} notification`);
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+    <ErrorBoundary>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 
 
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Health Tracking</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Monitor your fitness progress</Text>
-      </View>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Health Tracking</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Monitor your fitness progress</Text>
+        </View>
 
-      {/* Apple Health Banner (iOS only) */}
-      {Platform.OS === 'ios' && healthKitAvailable && !healthKitAuthorized && (
-        <View style={[
-          styles.healthKitBanner, 
-          { backgroundColor: "rgba(74, 144, 226, 0.1)" }
-        ]}>
-          <View style={styles.healthKitContent}>
-            <Zap size={20} color={colors.primary} />
-            <Text style={[styles.healthKitText, { color: colors.text }]}>
-              Connect to Apple Health to automatically sync your steps, workouts, and swimming activities.
-            </Text>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.healthKitButton, { backgroundColor: colors.primary }]}
-            onPress={async () => {
-              try {
-                const authResult = await HealthKit.requestAuthorization([
-                  'steps', 
-                  'distance', 
-                  'calories', 
-                  'heartRate', 
-                  'sleep', 
-                  'workouts'
-                ]);
-                
-                setHealthKitAuthorized(authResult.authorized);
-                
-                if (authResult.authorized) {
+        {/* Apple Health Banner (iOS only) */}
+        {Platform.OS === 'ios' && healthKitAvailable && !healthKitAuthorized && (
+          <View style={[
+            styles.healthKitBanner, 
+            { backgroundColor: "rgba(74, 144, 226, 0.1)" }
+          ]}>
+            <View style={styles.healthKitContent}>
+              <Zap size={20} color={colors.primary} />
+              <Text style={[styles.healthKitText, { color: colors.text }]}>
+                Connect to Apple Health to automatically sync your steps, workouts, and swimming activities.
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.healthKitButton, { backgroundColor: colors.primary }]}
+              onPress={async () => {
+                if (!HealthKit) {
                   Alert.alert(
-                    "Apple Health Connected",
-                    "Your app is now connected to Apple Health. Your health data will be synced automatically.",
+                    "Not Available",
+                    "Apple Health is not available on this device.",
                     [{ text: "OK" }]
                   );
-                } else {
+                  return;
+                }
+                
+                try {
+                  const authResult = await HealthKit.requestAuthorization([
+                    'steps', 
+                    'distance', 
+                    'calories', 
+                    'heartRate', 
+                    'sleep', 
+                    'workouts'
+                  ]);
+                  
+                  setHealthKitAuthorized(authResult.authorized);
+                  
+                  if (authResult.authorized) {
+                    Alert.alert(
+                      "Apple Health Connected",
+                      "Your app is now connected to Apple Health. Your health data will be synced automatically.",
+                      [{ text: "OK" }]
+                    );
+                  } else {
+                    Alert.alert(
+                      "Apple Health Access Denied",
+                      "Please open the Settings app and grant this app access to your health data.",
+                      [{ text: "OK" }]
+                    );
+                  }
+                } catch (error: any) {
                   Alert.alert(
-                    "Apple Health Access Denied",
-                    "Please open the Settings app and grant this app access to your health data.",
+                    "Error",
+                    `There was an error connecting to Apple Health: ${error.message}`,
                     [{ text: "OK" }]
                   );
                 }
-              } catch (error: any) {
-                Alert.alert(
-                  "Error",
-                  `There was an error connecting to Apple Health: ${error.message}`,
-                  [{ text: "OK" }]
-                );
-              }
-            }}
-          >
-            <Text style={styles.healthKitButtonText}>Connect</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+              }}
+            >
+              <Text style={styles.healthKitButtonText}>Connect</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Swimming Sync Section */}
-      {Platform.OS === 'ios' && healthKitAvailable && healthKitAuthorized && (
-        <View style={[styles.section, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-          <View style={styles.sectionHeader}>
-            <Zap size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Swimming Sync
+        {/* Swimming Sync Section */}
+        {Platform.OS === 'ios' && healthKitAvailable && healthKitAuthorized && (
+          <View style={[styles.section, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <Zap size={20} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Swimming Sync
+              </Text>
+            </View>
+            <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+              Automatically sync swimming activities from Apple Health
             </Text>
+            <TouchableOpacity
+              style={[styles.syncButton, { backgroundColor: colors.primary }]}
+              onPress={handleSwimmingSync}
+              disabled={isSwimmingSyncLoading}
+            >
+              <RefreshCw size={16} color="white" style={isSwimmingSyncLoading ? styles.rotating : undefined} />
+              <Text style={styles.syncButtonText}>
+                {isSwimmingSyncLoading ? 'Syncing...' : 'Sync Swimming'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+
+        
+        {/* Connected Device Banner */}
+        {(hasConnectedDevices || (Platform.OS === 'ios' && healthKitAuthorized)) && (
+          <View style={[styles.deviceBanner, { backgroundColor: colors.highlight }]}>
+            <View style={styles.deviceInfo}>
+              {healthKitAuthorized && Platform.OS === 'ios' ? (
+                <>
+                  <Zap size={20} color={colors.primary} />
+                  <Text style={[styles.deviceText, { color: colors.text }]}>
+                    Connected to Apple Health
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Smartphone size={20} color={colors.primary} />
+                  <Text style={[styles.deviceText, { color: colors.text }]}>
+                    Connected to {
+                      appleWatch ? "Apple Watch" : 
+                      fitbit ? "Fitbit" : 
+                      garmin ? "Garmin" : 
+                      "Smart Device"
+                    }
+                  </Text>
+                </>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.syncAllButton}
+              onPress={handleSyncAllDevices}
+              disabled={isSyncingAll}
+            >
+              {isSyncingAll ? (
+                <Text style={[styles.syncAllText, { color: colors.primary }]}>Syncing...</Text>
+              ) : (
+                <>
+                  <RefreshCw size={14} color={colors.primary} />
+                  <Text style={[styles.syncAllText, { color: colors.primary }]}>Sync</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {/* Step Counter */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Activity size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Step Counter</Text>
           </View>
           <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-            Automatically sync swimming activities from Apple Health
+            Track your daily steps and activity
           </Text>
-          <TouchableOpacity
-            style={[styles.syncButton, { backgroundColor: colors.primary }]}
-            onPress={handleSwimmingSync}
-            disabled={isSwimmingSyncLoading}
-          >
-            <RefreshCw size={16} color="white" style={isSwimmingSyncLoading ? styles.rotating : undefined} />
-            <Text style={styles.syncButtonText}>
-              {isSwimmingSyncLoading ? 'Syncing...' : 'Sync Swimming'}
-            </Text>
-          </TouchableOpacity>
+          <ErrorBoundary>
+            <StepCounter />
+          </ErrorBoundary>
         </View>
-      )}
-      
+        
+        {/* Weight Tracker */}
+        <ErrorBoundary>
+          <WeightTracker 
+            onAddWeight={() => router.push("/weight-log")}
+          />
+        </ErrorBoundary>
+        
+        {/* Water Tracker */}
+        <ErrorBoundary>
+          <WaterTracker />
+        </ErrorBoundary>
+        
+        {isTrackingLocation && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity Map</Text>
+              <TouchableOpacity onPress={() => router.push("/activity-map")}>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>Full Map</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ActivityMap height={200} />
+            
+            <TouchableOpacity 
+              style={[styles.activityButton, { backgroundColor: colors.primary }]}
+              onPress={() => router.push("/activity-log")}
+            >
+              <MapPin size={18} color="#FFFFFF" />
+              <Text style={styles.activityButtonText}>Log Activity</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        <View style={styles.statsContainer}>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+              <Activity size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.statValue, { color: colors.text }]}>{totalWorkouts}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Workouts</Text>
+           </View>
 
-      
-      {/* Connected Device Banner */}
-      {(hasConnectedDevices || (Platform.OS === 'ios' && healthKitAuthorized)) && (
-        <View style={[styles.deviceBanner, { backgroundColor: colors.highlight }]}>
-          <View style={styles.deviceInfo}>
-            {healthKitAuthorized && Platform.OS === 'ios' ? (
-              <>
-                <Zap size={20} color={colors.primary} />
-                <Text style={[styles.deviceText, { color: colors.text }]}>
-                  Connected to Apple Health
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
+              <Award size={20} color={colors.secondary} />
+            </View>
+            <Text style={[styles.statValue, { color: colors.text }]}>{activeDays}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Days</Text>
+          </View>
+          
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
+              <BarChart2 size={20} color="#FF9500" />
+            </View>
+            <Text style={[styles.statValue, { color: colors.text }]}>{totalWorkoutTime}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Minutes</Text>
+          </View>
+        </View>
+        
+        {!hasConnectedDevices && !(Platform.OS === 'ios' && healthKitAuthorized) && (
+          <TouchableOpacity 
+            style={[styles.connectDeviceCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/health-devices")}
+          >
+            <View style={styles.connectDeviceContent}>
+              <View style={[styles.connectDeviceIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+                <Smartphone size={24} color={colors.primary} />
+              </View>
+              <View style={styles.connectDeviceInfo}>
+                <Text style={[styles.connectDeviceTitle, { color: colors.text }]}>
+                  Connect a Device
                 </Text>
-              </>
-            ) : (
-              <>
-                <Smartphone size={20} color={colors.primary} />
-                <Text style={[styles.deviceText, { color: colors.text }]}>
-                  Connected to {
-                    appleWatch ? "Apple Watch" : 
-                    fitbit ? "Fitbit" : 
-                    garmin ? "Garmin" : 
-                    "Smart Device"
+                <Text style={[styles.connectDeviceSubtitle, { color: colors.textSecondary }]}>
+                  Sync with Apple Health, Apple Watch, Fitbit, or Garmin
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+        )}
+
+        {recentActivities.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activities</Text>
+              <TouchableOpacity onPress={() => router.push("/activity-history")}>
+                <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {recentActivities.map((activity) => (
+              <TouchableOpacity 
+                key={activity.id}
+                style={[styles.activityCard, { backgroundColor: colors.card }]}
+                onPress={() => router.push(`/activity/${activity.id}`)}
+              >
+                <View style={styles.activityInfo}>
+                  <View style={[styles.activityIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+                    <Footprints size={20} color={colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={[styles.activityType, { color: colors.text }]}>
+                      {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
+                    </Text>
+                    <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
+                      {new Date(activity.date).toLocaleDateString()} • {activity.duration} min
+                    </Text>
+                    
+                    {activity.source && (
+                      <View style={styles.activitySourceContainer}>
+                        {activity.source.includes("Apple Health") ? (
+                          <Zap size={12} color={colors.primary} />
+                        ) : activity.source.includes("Apple") ? (
+                          <Smartphone size={12} color={colors.textSecondary} />
+                        ) : activity.source.includes("Fitbit") ? (
+                          <Smartphone size={12} color="#00B0B9" />
+                        ) : activity.source.includes("Garmin") ? (
+                          <Smartphone size={12} color="#006CC1" />
+                        ) : (
+                          <Zap size={12} color={colors.textSecondary} />
+                        )}
+                        <Text style={styles.activitySource}>{activity.source}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                
+                <View style={styles.activityStats}>
+                  <Text style={[styles.activityDistance, { color: colors.primary }]}>
+                    {activity.distance} km
+                  </Text>
+                  <Text style={[styles.activityCalories, { color: colors.textSecondary }]}>
+                    {activity.calories} kcal
+                  </Text>
+                </View>
+                
+                <ChevronRight size={20} color={colors.textLight} />
+              </TouchableOpacity>
+            ))}
+            
+            <TouchableOpacity 
+              style={[styles.addActivityButton, { backgroundColor: colors.highlight }]}
+              onPress={() => router.push("/activity-log")}
+            >
+              <Text style={[styles.addActivityText, { color: colors.primary }]}>Log New Activity</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Health Tools</Text>
+          
+          <TouchableOpacity 
+            style={[styles.toolCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/progress-photos")}
+          >
+            <View style={styles.toolInfo}>
+              <View style={[styles.toolIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+                <Camera size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.toolTitle, { color: colors.text }]}>Progress Photos</Text>
+                <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
+                  {progressPhotos.length > 0 
+                    ? `${progressPhotos.length} photo${progressPhotos.length > 1 ? 's' : ''} saved`
+                    : "Track your physical changes over time"
                   }
                 </Text>
-              </>
-            )}
-          </View>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+          
           <TouchableOpacity
-            style={styles.syncAllButton}
-            onPress={handleSyncAllDevices}
-            disabled={isSyncingAll}
+            style={[styles.toolCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/health-devices")}
           >
-            {isSyncingAll ? (
-              <Text style={[styles.syncAllText, { color: colors.primary }]}>Syncing...</Text>
-            ) : (
-              <>
-                <RefreshCw size={14} color={colors.primary} />
-                <Text style={[styles.syncAllText, { color: colors.primary }]}>Sync</Text>
-              </>
-            )}
+            <View style={styles.toolInfo}>
+              <View style={[styles.toolIcon, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
+                <Smartphone size={24} color={colors.secondary} />
+              </View>
+              <View>
+                <Text style={[styles.toolTitle, { color: colors.text }]}>Connected Devices</Text>
+                <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
+                  {Platform.OS === 'ios' && isAppleWatchConnected
+                    ? "Apple Watch connected - Control workouts from your watch"
+                    : hasConnectedDevices
+                      ? `${connectedDevices.length} device${connectedDevices.length > 1 ? 's' : ''} connected`
+                      : healthKitAuthorized
+                        ? "Apple Health connected"
+                        : "Connect your smartwatch or fitness tracker"
+                  }
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
           </TouchableOpacity>
-        </View>
-      )}
-      
-      {/* Step Counter */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Activity size={20} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Step Counter</Text>
-        </View>
-        <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-          Track your daily steps and activity
-        </Text>
-        <StepCounter />
-      </View>
-      
-      {/* Weight Tracker */}
-      <WeightTracker 
-        onAddWeight={() => router.push("/weight-log")}
-      />
-      
-      {/* Water Tracker */}
-      <WaterTracker />
-      
-      {isTrackingLocation && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity Map</Text>
-            <TouchableOpacity onPress={() => router.push("/activity-map")}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>Full Map</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ActivityMap height={200} />
           
           <TouchableOpacity 
-            style={[styles.activityButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/activity-log")}
+            style={[styles.toolCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/weight-log")}
           >
-            <MapPin size={18} color="#FFFFFF" />
-            <Text style={styles.activityButtonText}>Log Activity</Text>
+            <View style={styles.toolInfo}>
+              <View style={[styles.toolIcon, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
+                <TrendingUp size={24} color="#FF9500" />
+              </View>
+              <View>
+                <Text style={[styles.toolTitle, { color: colors.text }]}>Weight Tracking</Text>
+                <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
+                  {weightLogs.length > 0 
+                    ? `${weightLogs.length} weight log${weightLogs.length > 1 ? 's' : ''} recorded`
+                    : "Start tracking your weight progress"
+                  }
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.toolCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/health-goals")}
+          >
+            <View style={styles.toolInfo}>
+              <View style={[styles.toolIcon, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
+                <Target size={24} color="#FF9500" />
+              </View>
+              <View>
+                <Text style={[styles.toolTitle, { color: colors.text }]}>Health Goals</Text>
+                <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
+                  Set and track your health objectives
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.toolCard, { backgroundColor: colors.card }]}
+            onPress={() => router.push("/workout-analytics")}
+          >
+            <View style={styles.toolInfo}>
+              <View style={[styles.toolIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+                <BarChart3 size={24} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.toolTitle, { color: colors.text }]}>Workout Analytics</Text>
+                <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
+                  View detailed charts and progress graphs
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.textLight} />
           </TouchableOpacity>
         </View>
-      )}
-      
-      <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <View style={[styles.statIconContainer, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-            <Activity size={20} color={colors.primary} />
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>{totalWorkouts}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Workouts</Text>
-         </View>
-
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <View style={[styles.statIconContainer, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
-            <Award size={20} color={colors.secondary} />
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>{activeDays}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Days</Text>
-        </View>
         
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <View style={[styles.statIconContainer, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
-            <BarChart2 size={20} color="#FF9500" />
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>{totalWorkoutTime}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Minutes</Text>
-        </View>
-      </View>
-      
-      {!hasConnectedDevices && !(Platform.OS === 'ios' && healthKitAuthorized) && (
-        <TouchableOpacity 
-          style={[styles.connectDeviceCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/health-devices")}
-        >
-          <View style={styles.connectDeviceContent}>
-            <View style={[styles.connectDeviceIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-              <Smartphone size={24} color={colors.primary} />
-            </View>
-            <View style={styles.connectDeviceInfo}>
-              <Text style={[styles.connectDeviceTitle, { color: colors.text }]}>
-                Connect a Device
-              </Text>
-              <Text style={[styles.connectDeviceSubtitle, { color: colors.textSecondary }]}>
-                Sync with Apple Health, Apple Watch, Fitbit, or Garmin
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-      )}
-
-      {recentActivities.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activities</Text>
-            <TouchableOpacity onPress={() => router.push("/activity-history")}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.cardioSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Log</Text>
           
-          {recentActivities.map((activity) => (
+          <View style={styles.cardioButtonsContainer}>
             <TouchableOpacity 
-              key={activity.id}
-              style={[styles.activityCard, { backgroundColor: colors.card }]}
-              onPress={() => router.push(`/activity/${activity.id}`)}
+              style={[styles.cardioButton, { backgroundColor: colors.card }]}
+              onPress={() => router.push("/log-cardio")}
             >
-              <View style={styles.activityInfo}>
-                <View style={[styles.activityIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-                  <Footprints size={20} color={colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.activityType, { color: colors.text }]}>
-                    {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
-                  </Text>
-                  <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
-                    {new Date(activity.date).toLocaleDateString()} • {activity.duration} min
-                  </Text>
-                  
-                  {activity.source && (
-                    <View style={styles.activitySourceContainer}>
-                      {activity.source.includes("Apple Health") ? (
-                        <Zap size={12} color={colors.primary} />
-                      ) : activity.source.includes("Apple") ? (
-                        <Smartphone size={12} color={colors.textSecondary} />
-                      ) : activity.source.includes("Fitbit") ? (
-                        <Smartphone size={12} color="#00B0B9" />
-                      ) : activity.source.includes("Garmin") ? (
-                        <Smartphone size={12} color="#006CC1" />
-                      ) : (
-                        <Zap size={12} color={colors.textSecondary} />
-                      )}
-                      <Text style={styles.activitySource}>{activity.source}</Text>
-                    </View>
-                  )}
-                </View>
+              <View style={[styles.cardioButtonIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
+                <Footprints size={24} color={colors.primary} />
               </View>
-              
-              <View style={styles.activityStats}>
-                <Text style={[styles.activityDistance, { color: colors.primary }]}>
-                  {activity.distance} km
-                </Text>
-                <Text style={[styles.activityCalories, { color: colors.textSecondary }]}>
-                  {activity.calories} kcal
-                </Text>
-              </View>
-              
-              <ChevronRight size={20} color={colors.textLight} />
+              <Text style={[styles.cardioButtonText, { color: colors.text }]}>Log Cardio</Text>
             </TouchableOpacity>
-          ))}
-          
-          <TouchableOpacity 
-            style={[styles.addActivityButton, { backgroundColor: colors.highlight }]}
-            onPress={() => router.push("/activity-log")}
-          >
-            <Text style={[styles.addActivityText, { color: colors.primary }]}>Log New Activity</Text>
-          </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.cardioButton, { backgroundColor: colors.card }]}
+              onPress={() => router.push("/activity-log")}
+            >
+              <View style={[styles.cardioButtonIcon, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
+                <Activity size={24} color={colors.secondary} />
+              </View>
+              <Text style={[styles.cardioButtonText, { color: colors.text }]}>Log Activity</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      )}
-      
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Health Tools</Text>
-        
-        <TouchableOpacity 
-          style={[styles.toolCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/progress-photos")}
-        >
-          <View style={styles.toolInfo}>
-            <View style={[styles.toolIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-              <Camera size={24} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={[styles.toolTitle, { color: colors.text }]}>Progress Photos</Text>
-              <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                {progressPhotos.length > 0 
-                  ? `${progressPhotos.length} photo${progressPhotos.length > 1 ? 's' : ''} saved`
-                  : "Track your physical changes over time"
-                }
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.toolCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/health-devices")}
-        >
-          <View style={styles.toolInfo}>
-            <View style={[styles.toolIcon, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
-              <Smartphone size={24} color={colors.secondary} />
-            </View>
-            <View>
-              <Text style={[styles.toolTitle, { color: colors.text }]}>Connected Devices</Text>
-              <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                {Platform.OS === 'ios' && isAppleWatchConnected
-                  ? "Apple Watch connected - Control workouts from your watch"
-                  : hasConnectedDevices
-                    ? `${connectedDevices.length} device${connectedDevices.length > 1 ? 's' : ''} connected`
-                    : healthKitAuthorized
-                      ? "Apple Health connected"
-                      : "Connect your smartwatch or fitness tracker"
-                }
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.toolCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/weight-log")}
-        >
-          <View style={styles.toolInfo}>
-            <View style={[styles.toolIcon, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
-              <TrendingUp size={24} color="#FF9500" />
-            </View>
-            <View>
-              <Text style={[styles.toolTitle, { color: colors.text }]}>Weight Tracking</Text>
-              <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                {weightLogs.length > 0 
-                  ? `${weightLogs.length} weight log${weightLogs.length > 1 ? 's' : ''} recorded`
-                  : "Start tracking your weight progress"
-                }
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.toolCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/health-goals")}
-        >
-          <View style={styles.toolInfo}>
-            <View style={[styles.toolIcon, { backgroundColor: "rgba(255, 149, 0, 0.1)" }]}>
-              <Target size={24} color="#FF9500" />
-            </View>
-            <View>
-              <Text style={[styles.toolTitle, { color: colors.text }]}>Health Goals</Text>
-              <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                Set and track your health objectives
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.toolCard, { backgroundColor: colors.card }]}
-          onPress={() => router.push("/workout-analytics")}
-        >
-          <View style={styles.toolInfo}>
-            <View style={[styles.toolIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-              <BarChart3 size={24} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={[styles.toolTitle, { color: colors.text }]}>Workout Analytics</Text>
-              <Text style={[styles.toolDescription, { color: colors.textSecondary }]}>
-                View detailed charts and progress graphs
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={20} color={colors.textLight} />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.cardioSection}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Log</Text>
-        
-        <View style={styles.cardioButtonsContainer}>
-          <TouchableOpacity 
-            style={[styles.cardioButton, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/log-cardio")}
-          >
-            <View style={[styles.cardioButtonIcon, { backgroundColor: "rgba(74, 144, 226, 0.1)" }]}>
-              <Footprints size={24} color={colors.primary} />
-            </View>
-            <Text style={[styles.cardioButtonText, { color: colors.text }]}>Log Cardio</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.cardioButton, { backgroundColor: colors.card }]}
-            onPress={() => router.push("/activity-log")}
-          >
-            <View style={[styles.cardioButtonIcon, { backgroundColor: "rgba(80, 200, 120, 0.1)" }]}>
-              <Activity size={24} color={colors.secondary} />
-            </View>
-            <Text style={[styles.cardioButtonText, { color: colors.text }]}>Log Activity</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </ErrorBoundary>
   );
 }
 
