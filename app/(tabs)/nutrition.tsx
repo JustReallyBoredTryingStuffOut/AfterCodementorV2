@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Plus, ChevronRight, UtensilsCrossed, BarChart, Calendar, ArrowLeft, Info, Coffee, Sun, Moon, Droplets, Lightbulb, Bell } from 'lucide-react-native';
 import { useTheme } from '@/context/ThemeContext';
@@ -80,12 +80,15 @@ export default function NutritionScreen() {
   // Test water notification function
   const testWaterNotification = async () => {
     try {
-      // Request notification permissions if not granted
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== 'granted') {
-        const { status: newStatus } = await Notifications.requestPermissionsAsync();
-        if (newStatus !== 'granted') {
-          Alert.alert("Permission Required", "Please enable notifications in your device settings to test water reminders.");
+      if (Platform.OS !== 'web') {
+        // Don't proactively request permissions - let iOS handle it natively
+        // when notifications are actually scheduled
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            "Permission Required",
+            "Please enable notifications in your device settings to receive meal reminders."
+          );
           return;
         }
       }

@@ -6684,18 +6684,24 @@ GOAL CREATION EXAMPLES:
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{
-          title: "Coach Alex",
+          title: "",
           headerShown: true,
+          headerStyle: {
+            backgroundColor: colors.background,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.back()} 
               style={styles.backButton}
             >
-              <ArrowLeft size={24} color={colors.text} />
+              <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
           ),
           headerRight: () => (
             <View style={styles.headerButtons}>
+              {/* Coach Name - Main Action */}
               <TouchableOpacity 
                 onPress={() => setShowPersonalization(true)}
                 onLongPress={() => {
@@ -6706,43 +6712,28 @@ GOAL CREATION EXAMPLES:
                     console.error("Error resetting onboarding:", error);
                   }
                 }}
-                style={styles.personalizationButton}
+                style={styles.coachNameButton}
               >
-                <Text style={styles.personalizationButtonText}>
+                <Text style={styles.coachNameText}>
                   {aiPersonality?.name || "Coach Alex"}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => {
-                  try {
-                    resetOnboarding?.();
-                    setShowOnboarding(true);
-                  } catch (error) {
-                    console.error("Error resetting onboarding:", error);
-                  }
-                }}
-                style={styles.resetButton}
-              >
-                <Text style={styles.resetButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => router.push('/terms-of-service')}
-                style={styles.privacyButton}
-              >
-                <Text style={styles.privacyButtonText}>Privacy</Text>
-              </TouchableOpacity>
+              
+              {/* Quick Actions Toggle */}
               <TouchableOpacity 
                 onPress={() => setShowQuickActions(!showQuickActions)}
                 style={styles.quickActionsToggle}
               >
-                <Zap size={20} color={showQuickActions ? colors.primary : colors.textSecondary} />
+                <Zap size={18} color={showQuickActions ? colors.primary : colors.textSecondary} />
               </TouchableOpacity>
+              
+              {/* Chat List Toggle */}
               <TouchableOpacity 
                 onPress={() => setShowChats(!showChats)}
                 style={styles.chatListButton}
               >
                 <Text style={styles.chatListButtonText}>
-                  {showChats ? "Hide Chats" : "Show Chats"}
+                  {showChats ? "Hide" : "Chats"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -6912,11 +6903,16 @@ const getStyles = (colors: any) => StyleSheet.create({
     padding: 8,
     marginLeft: 8,
     backgroundColor: colors.card,
-    borderRadius: 8,
-    width: 40,
-    height: 40,
+    borderRadius: 12,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   chatListButton: {
     paddingVertical: 6,
@@ -7170,45 +7166,53 @@ const getStyles = (colors: any) => StyleSheet.create({
   headerButtons: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
-  personalizationButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.primaryLight,
-    marginRight: 8,
+  coachNameButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    marginRight: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  personalizationButtonText: {
-    color: colors.primary,
-    fontWeight: "600",
-    fontSize: 12,
-  },
-  resetButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: colors.error,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  resetButtonText: {
+  coachNameText: {
     color: colors.white,
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  privacyButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: colors.primaryLight,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  privacyButtonText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 14,
   },
   quickActionsToggle: {
     padding: 8,
-    marginRight: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  chatListButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  chatListButtonText: {
+    color: colors.primary,
+    fontWeight: "600",
+    fontSize: 13,
   },
 });

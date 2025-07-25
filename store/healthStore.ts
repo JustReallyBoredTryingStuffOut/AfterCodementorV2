@@ -38,6 +38,10 @@ interface HealthState {
   swimmingSyncInterval: NodeJS.Timeout | null;
   isAppleWatchConnected: boolean;
   
+  // Water bottle management
+  preferredBottleSize: number; // in ml
+  favoriteBottles: number[]; // array of bottle sizes in ml
+  
   // Actions
   addWeightLog: (log: WeightLog) => void;
   updateWeightLog: (log: WeightLog) => void;
@@ -66,6 +70,11 @@ interface HealthState {
   addWaterIntake: (amount: number) => void;
   updateWaterIntake: (id: string, amount: number) => void;
   removeWaterIntake: (id: string) => void;
+  
+  // Water bottle management
+  setPreferredBottleSize: (size: number) => void;
+  addFavoriteBottle: (size: number) => void;
+  removeFavoriteBottle: (size: number) => void;
   
   // Step count tracking
   updateStepCount: (count: number) => void;
@@ -159,6 +168,10 @@ export const useHealthStore = create<HealthState>()(
       dailyNotes: [], // Initialize with empty array
       swimmingSyncInterval: null, // Initialize with null
       isAppleWatchConnected: false, // Initialize with false
+      
+      // Water bottle management
+      preferredBottleSize: 500, // Default to 500ml
+      favoriteBottles: [], // Initialize as empty array
       
       addWeightLog: (log) => set((state) => {
         // Check if a log with the same ID already exists
@@ -267,6 +280,15 @@ export const useHealthStore = create<HealthState>()(
       
       removeWaterIntake: (id) => set((state) => ({
         waterIntake: state.waterIntake.filter(entry => entry.id !== id)
+      })),
+      
+      // Water bottle management
+      setPreferredBottleSize: (size) => set({ preferredBottleSize: size }),
+      addFavoriteBottle: (size) => set((state) => ({
+        favoriteBottles: [...state.favoriteBottles, size]
+      })),
+      removeFavoriteBottle: (size) => set((state) => ({
+        favoriteBottles: state.favoriteBottles.filter(s => s !== size)
       })),
       
       // Step count tracking

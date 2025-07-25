@@ -65,7 +65,9 @@ export default function NotificationsScreen() {
       return;
     }
     
-    const { status } = await Notifications.requestPermissionsAsync();
+    // Don't proactively request permissions - let iOS handle it natively
+    // when notifications are actually scheduled
+    const { status } = await Notifications.getPermissionsAsync();
     setHasPermission(status === "granted");
     
     if (status !== "granted") {
@@ -84,8 +86,8 @@ export default function NotificationsScreen() {
     if (value) {
       // User wants to enable notifications
       if (!hasPermission) {
-        // Request permission if not granted
-        const { status } = await Notifications.requestPermissionsAsync();
+        // Don't proactively request permission - let iOS handle it when notifications are scheduled
+        const { status } = await Notifications.getPermissionsAsync();
         const permissionGranted = status === "granted";
         setHasPermission(permissionGranted);
 

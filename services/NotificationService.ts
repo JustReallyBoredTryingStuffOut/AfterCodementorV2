@@ -34,10 +34,12 @@ export class NotificationService {
   // Request notification permissions
   async requestPermissions(): Promise<boolean> {
     try {
-      const { status } = await Notifications.requestPermissionsAsync();
+      // Don't proactively request permissions - let iOS handle it natively
+      // when notifications are actually scheduled
+      const { status } = await Notifications.getPermissionsAsync();
       return status === 'granted';
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      console.error('Error checking notification permissions:', error);
       return false;
     }
   }

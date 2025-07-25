@@ -45,6 +45,16 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
             animateCountdown();
           }
           
+          // Send updates to Apple Watch for the last 10 seconds
+          if (newTime <= 10 && newTime > 0 && Platform.OS === 'ios' && isAppleWatchConnected) {
+            try {
+              AppleWatch.updateRestTimerOnWatch(newTime);
+              console.log(`Updated Apple Watch with ${newTime} seconds remaining`);
+            } catch (error) {
+              console.error('Error updating Apple Watch timer:', error);
+            }
+          }
+          
           // Check if timer completed
           if (newTime <= 0) {
             handleTimerComplete();
@@ -61,7 +71,7 @@ export default function RestTimerModal({ visible, onClose, duration, onComplete 
         clearInterval(interval);
       }
     };
-  }, [isRunning, timeLeft, showCountdown]);
+  }, [isRunning, timeLeft, showCountdown, isAppleWatchConnected]);
 
   const checkAppleWatchConnection = async () => {
     if (Platform.OS === 'ios') {

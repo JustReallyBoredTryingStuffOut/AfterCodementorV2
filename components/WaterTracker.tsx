@@ -6,7 +6,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { useHealthStore } from '@/store/healthStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useWaterStore } from '@/store/waterStore';
 import Button from './Button';
 
 interface WaterBottle {
@@ -32,15 +31,13 @@ const WaterTracker: React.FC = () => {
     removeWaterIntake, 
     getWaterIntakeForDate,
     healthGoals,
-    updateHealthGoals
+    updateHealthGoals,
+    preferredBottleSize,
+    favoriteBottles,
+    setPreferredBottleSize,
+    addFavoriteBottle,
+    removeFavoriteBottle
   } = useHealthStore();
-  const { 
-    preferredBottleSize, 
-    favoriteBottles, 
-    setPreferredBottleSize, 
-    addFavoriteBottle, 
-    removeFavoriteBottle 
-  } = useWaterStore();
   const { scheduleWaterNotification, settings, updateSettings } = useNotificationStore();
   const { waterTrackingMode, waterTrackingEnabled } = useSettingsStore();
 
@@ -127,14 +124,12 @@ const WaterTracker: React.FC = () => {
   // Test function to trigger immediate water notification
   const testWaterNotification = async () => {
     try {
-      // Request notification permissions if not granted
+      // Don't proactively request permissions - let iOS handle it natively
+      // when notifications are actually scheduled
       const { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
-        const { status: newStatus } = await Notifications.requestPermissionsAsync();
-        if (newStatus !== 'granted') {
-          Alert.alert("Permission Required", "Please enable notifications in your device settings to test water reminders.");
-          return;
-        }
+        Alert.alert("Permission Required", "Please enable notifications in your device settings to test water reminders.");
+        return;
       }
 
       // Schedule an immediate notification
@@ -429,7 +424,7 @@ const WaterTracker: React.FC = () => {
         </View>
         
         <View style={styles.bottleGrid}>
-          {favoriteBottles.slice(0, 4).map((bottleSize) => (
+          {(Array.isArray(favoriteBottles) ? favoriteBottles : []).slice(0, 4).map((bottleSize) => (
             <TouchableOpacity
               key={bottleSize}
               style={[
@@ -448,10 +443,10 @@ const WaterTracker: React.FC = () => {
               onPress={() => addWater(bottleSize)}
             >
               <Droplets size={20} color={colors.primary} />
-              <Text style={[styles.bottleAmount, { color: colors.primary }]}>
+              <Text style={[styles.bottleAmount, { color: colors.primary }]}> 
                 {bottleSize}ml
               </Text>
-              <Text style={[styles.bottleName, { color: colors.textSecondary }]}>
+              <Text style={[styles.bottleName, { color: colors.textSecondary }]}> 
                 Favorite
               </Text>
             </TouchableOpacity>
